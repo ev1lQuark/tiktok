@@ -1,0 +1,46 @@
+type (
+	LoginOrRegisterReq {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	LoginOrRegisterReply {
+		Code    int32  `json:"status_code"`
+		Message string `json:"status_message"`
+		UserId  string `json:"user_id"`
+		Token   string `json:"token"`
+	}
+
+	UserInfoReq {
+		UserId string `json:"user_id"`
+		Token  string `json:"token"`
+	}
+
+	UserInfoReply {
+		Code    int32  `json:"status_code"`
+		Message string `json:"status_message"`
+		User    *User  `json:"user"`
+	}
+
+	User {
+		Id            int64  `json:"id"`
+		Name          string `json:"name"`
+		FollowCount   int64  `json:"follow_count"`
+		FollowerCount int64  `json:"follower_count"`
+		IsFollow      bool   `json:"is_follow"`
+	}
+)
+
+@server(
+	prefix: douyin
+)
+service user-api {
+	@handler login
+	post /user/login (LoginOrRegisterReq) returns (LoginOrRegisterReply)
+	
+	@handler register
+	post /user/register (LoginOrRegisterReq) returns (LoginOrRegisterReply)
+	
+	@handler userInfo
+	get /user (UserInfoReq) returns (UserInfoReply)
+}
