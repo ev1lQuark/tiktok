@@ -7,21 +7,21 @@ type LoginOrRegisterReq struct {
 }
 
 type LoginOrRegisterReply struct {
-	Code    int32  `json:"status_code"`
-	Message string `json:"status_message"`
-	UserId  int64  `json:"user_id"`
-	Token   string `json:"token"`
+	StatusCode int32  `json:"status_code"`
+	StatusMsg  string `json:"status_msg"`
+	UserId     int64  `json:"user_id"`
+	Token      string `json:"token"`
 }
 
 type UserInfoReq struct {
-	UserId string `json:"user_id"`
-	Token  string `json:"token"`
+	UserId string `form:"user_id"`
+	Token  string `form:"token"`
 }
 
 type UserInfoReply struct {
-	Code    int32  `json:"status_code"`
-	Message string `json:"status_message"`
-	User    *User  `json:"user"`
+	StautsCode int32  `json:"status_code"`
+	StatusMsg  string `json:"status_msg"`
+	User       *User  `json:"user"`
 }
 
 type User struct {

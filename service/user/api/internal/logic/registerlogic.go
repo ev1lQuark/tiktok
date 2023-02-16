@@ -33,7 +33,7 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 func (l *RegisterLogic) Register(req *types.LoginOrRegisterReq) (resp *types.LoginOrRegisterReply, err error) {
 	// 参数校验
 	if len(strings.TrimSpace(req.Username)) == 0 || len(strings.TrimSpace(req.Password)) == 0 {
-		resp = &types.LoginOrRegisterReply{Code: res.DefaultErrorCode, Message: "参数错误"}
+		resp = &types.LoginOrRegisterReply{StatusCode: res.BadRequestCode, StatusMsg: "用户名或密码为空"}
 		return resp, nil
 	}
 
@@ -48,7 +48,7 @@ func (l *RegisterLogic) Register(req *types.LoginOrRegisterReq) (resp *types.Log
 			return nil, err
 		}
 	} else {
-		resp = &types.LoginOrRegisterReply{Code: res.DefaultErrorCode, Message: "用户已存在"}
+		resp = &types.LoginOrRegisterReply{StatusCode: res.BadRequestCode, StatusMsg: "用户已存在"}
 		return resp, nil
 	}
 
@@ -69,5 +69,5 @@ func (l *RegisterLogic) Register(req *types.LoginOrRegisterReq) (resp *types.Log
 		return nil, err
 	}
 
-	return &types.LoginOrRegisterReply{Code: res.SuccessCode, Message: "注册成功", UserId: user.ID, Token: token}, nil
+	return &types.LoginOrRegisterReply{StatusCode: res.SuccessCode, StatusMsg: "注册成功", UserId: user.ID, Token: token}, nil
 }
