@@ -15,4 +15,9 @@ type Config struct {
 		AccessSecret string
 		AccessExpire int64
 	}
+	Minio struct {
+		Endpoint    string
+		VideoBucket string
+		ImageBucket string
+	}
 }

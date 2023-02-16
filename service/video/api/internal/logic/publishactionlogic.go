@@ -3,6 +3,8 @@ package logic
 import (
 	"context"
 
+	"github.com/ev1lQuark/tiktok/common/jwt"
+	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/types"
 
@@ -24,7 +26,15 @@ func NewPublishActionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Pub
 }
 
 func (l *PublishActionLogic) PublishAction(req *types.PublishActionReq) (resp *types.PublishActionReply, err error) {
-	// todo: add your logic here and delete this line
+	// Parse jwt token
+	userId, err := jwt.ParseUserIdFromJwtToken(l.svcCtx.Config.Auth.AccessSecret, req.Token)
+	if err != nil {
+		resp = &types.PublishActionReply{
+			StatusCode: res.AuthFailedCode,
+			StatusMsg:  "jwt 认证失败",
+		}
+		return resp, nil
+	}
 
 	return
 }

@@ -3,13 +3,14 @@ package logic
 import (
 	"context"
 	"fmt"
+	"log"
+	"strconv"
+
 	"github.com/ev1lQuark/tiktok/common/config"
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/types"
-	"log"
-	"strconv"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

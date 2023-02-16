@@ -33,6 +33,7 @@ type VideoList struct {
 }
 
 type PublishActionReq struct {
+	Data  []byte `form:"data"`
 	Token string `form:"token"`
 	Title string `form:"title"`
 }
