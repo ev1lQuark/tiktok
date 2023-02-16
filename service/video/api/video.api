@@ -1,7 +1,7 @@
 //
 type FeedReq {
-	LatestTime string `from:"latest_time"`
-	Token      string `from:"token"`
+	LatestTime string `form:"latest_time"`
+	Token      string `form:"token"`
 }
 type FeedReply {
 	StatusCode int         `json:"status_code"`
@@ -56,9 +56,9 @@ service video-api {
 	get /douyin/feed (FeedReq) returns (FeedReply)
 }
 
-@server(
-	jwt:   Auth
-)
+//@server(
+//	jwt:   Auth
+//)
 service video-api {
 	@handler publishAction
 	post /douyin/publish/action (PublishActionReq) returns (PublishActionReply)
