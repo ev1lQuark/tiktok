@@ -32,7 +32,7 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 func (l *LoginLogic) Login(req *types.LoginOrRegisterReq) (resp *types.LoginOrRegisterReply, err error) {
 	// 参数校验
 	if len(strings.TrimSpace(req.Username)) == 0 || len(strings.TrimSpace(req.Password)) == 0 {
-		resp = &types.LoginOrRegisterReply{Code: res.DefaultErrorCode, Message: "参数错误"}
+		resp = &types.LoginOrRegisterReply{StatusCode: res.BadRequestCode, StatusMsg: "用户名或密码为空"}
 		return resp, nil
 	}
 
@@ -42,7 +42,7 @@ func (l *LoginLogic) Login(req *types.LoginOrRegisterReq) (resp *types.LoginOrRe
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			resp = &types.LoginOrRegisterReply{Code: res.DefaultErrorCode, Message: "用户不存在"}
+			resp = &types.LoginOrRegisterReply{StatusCode: res.BadRequestCode, StatusMsg: "用户不存在"}
 			return resp, nil
 		default:
 			return nil, err
@@ -52,7 +52,7 @@ func (l *LoginLogic) Login(req *types.LoginOrRegisterReq) (resp *types.LoginOrRe
 	// 校验密码
 	p := encrypt.Sha256Encrypt(req.Password)
 	if user.Password != p {
-		resp = &types.LoginOrRegisterReply{Code: res.DefaultErrorCode, Message: "密码错误"}
+		resp = &types.LoginOrRegisterReply{StatusCode: res.BadRequestCode, StatusMsg: "密码错误"}
 		return resp, nil
 	}
 
@@ -62,5 +62,5 @@ func (l *LoginLogic) Login(req *types.LoginOrRegisterReq) (resp *types.LoginOrRe
 		return nil, err
 	}
 
-	return &types.LoginOrRegisterReply{Code: res.SuccessCode, Message: "登录成功", UserId: user.ID, Token: token}, nil
+	return &types.LoginOrRegisterReply{StatusCode: res.SuccessCode, StatusMsg: "登录成功", UserId: user.ID, Token: token}, nil
 }
