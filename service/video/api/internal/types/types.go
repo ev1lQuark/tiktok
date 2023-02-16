@@ -43,8 +43,8 @@ type PublishActionReply struct {
 }
 
 type PublishListReq struct {
-	Token  string `json:"token"`
-	UserID string `json:"user_id"`
+	Token  string `form:"token"`
+	UserID string `form:"user_id"`
 }
 
 type PublishListReply struct {

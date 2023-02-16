@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ev1lQuark/tiktok/common/config"
+	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/types"
@@ -28,14 +29,16 @@ func NewPublishListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Publi
 }
 
 func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.PublishListReply, err error) {
+	//登录校验
+	jwt.ParseUserIdFromJwtToken(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	// 参数校验
-	if len(req.Token) == 0 || len(req.UserID) == 0 {
-		resp = &types.PublishListReply{StatusCode: res.DefaultErrorCode, StatusMsg: "参数错误"}
+	if len(req.UserID) == 0 {
+		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
 	userId, err := strconv.ParseInt(req.UserID, 10, 64)
 	if err != nil {
-		resp = &types.PublishListReply{StatusCode: res.DefaultErrorCode, StatusMsg: "参数错误"}
+		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
 	//查找last date最近视屏
@@ -45,7 +48,7 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 
 	if err != nil {
 		log.Printf("获取用户的视频发布列表失败：%v", err)
-		resp = &types.PublishListReply{StatusCode: res.DefaultErrorCode, StatusMsg: "获取用户的视频发布列表失败"}
+		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: "获取用户的视频发布列表失败"}
 		return resp, nil
 	}
 	log.Printf("获取用户的视频发布列表成功：%v", tableVideos)
@@ -68,5 +71,4 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 	}
 	resp = &types.PublishListReply{StatusCode: res.SuccessCode, StatusMsg: "成功", VideoList: videos}
 	return resp, nil
-	return
 }

@@ -30,13 +30,13 @@ func NewFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FeedLogic {
 func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) {
 	// 参数校验
 	if len(req.LatestTime) == 0 {
-		resp = &types.FeedReply{StatusCode: res.DefaultErrorCode, StatusMsg: "参数错误"}
+		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
 	lastTime := time.Now()
 	t, err := strconv.ParseInt(req.LatestTime, 10, 64)
 	if err != nil {
-		resp = &types.FeedReply{StatusCode: res.DefaultErrorCode, StatusMsg: "参数错误"}
+		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
 	lastTime = time.Unix(t, 0)
@@ -47,7 +47,7 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 
 	if err != nil {
 		log.Printf("查询视屏失败：%v", err)
-		resp = &types.FeedReply{StatusCode: res.DefaultErrorCode, StatusMsg: "查询视屏失败"}
+		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: "查询视屏失败"}
 		return resp, nil
 	}
 	log.Printf("查询成功：%v", tableVideos)
