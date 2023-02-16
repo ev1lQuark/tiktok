@@ -1,0 +1,67 @@
+//
+type FeedReq {
+	LatestTime string `from:"latest_time"`
+	Token      string `from:"token"`
+}
+type FeedReply {
+	StatusCode int         `json:"status_code"`
+	StatusMsg  string      `json:"status_msg"`
+	NextTime   int         `json:"next_time"`
+	VideoList  []VideoList `json:"video_list"`
+}
+type Author {
+	ID            int    `json:"id"`
+	Name          string `json:"name"`
+	FollowCount   int    `json:"follow_count"`
+	FollowerCount int    `json:"follower_count"`
+	IsFollow      bool   `json:"is_follow"`
+}
+type VideoList {
+	ID            int    `json:"id"`
+	Author        Author `json:"author"`
+	PlayURL       string `json:"play_url"`
+	CoverURL      string `json:"cover_url"`
+	FavoriteCount int    `json:"favorite_count"`
+	CommentCount  int    `json:"comment_count"`
+	IsFavorite    bool   `json:"is_favorite"`
+	Title         string `json:"title"`
+}
+
+//Data  []byte `form:"data"`
+
+type PublishActionReq {
+	Token string `form:"token"`
+	Title string `form:"title"`
+}
+
+type PublishActionReply {
+	StatusCode int    `json:"status_code"`
+	StatusMsg  string `json:"status_msg"`
+}
+
+//
+type PublishListReq {
+	Token  string `json:"token"`
+	UserID string `json:"user_id"`
+}
+
+type PublishListReply {
+	StatusCode int         `json:"status_code"`
+	StatusMsg  string      `json:"status_msg"`
+	VideoList  []VideoList `json:"video_list"`
+}
+
+service video-api {
+	@handler feed
+	get /douyin/feed (FeedReq) returns (FeedReply)
+}
+
+@server(
+	jwt:   Auth
+)
+service video-api {
+	@handler publishAction
+	post /douyin/publish/action (PublishActionReq) returns (PublishActionReply)
+	@handler publishList
+	get /douyin/publish/list (PublishListReq) returns (PublishListReply)
+}
