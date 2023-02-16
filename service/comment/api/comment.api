@@ -1,0 +1,65 @@
+type (
+
+	//评论操作
+	//请求参数
+	getCommentRequest {
+		Token       string `json:"token"`
+		VideoId     string `json:"video_id"`
+		ActionType  string `json:"action_type"`
+		CommentText string `json:"comment_text"`
+		CommentId   string `json:"comment_id"`
+	}
+	//返回响应
+	getCommentResponse {
+		StatusCode int     `json:"status_code"`
+		StatusMsg  string  `json:"status_msg"`
+		Comment    Comment `json:"comment"`
+	}
+
+	Comment {
+		ID         int    `json:"id"`
+		User       User   `json:"user"`
+		Content    string `json:"content"`
+		CreateDate string `json:"create_date"`
+	}
+
+	//评论列表
+	//请求参数
+	getCommentListRequest {
+		Token   string `json:"token"`
+		VideoId string `json:"video_id"`
+	}
+	//返回响应
+	getCommentListResponse {
+		StatusCode  int           `json:"status_code"`
+		StatusMsg   string        `json:"status_msg"`
+		CommentList []CommentList `json:"comment_list"`
+	}
+	CommentList {
+		ID         int    `json:"id"`
+		User       User   `json:"user"`
+		Content    string `json:"content"`
+		CreateDate string `json:"create_date"`
+	}
+
+	//用户信息
+	User {
+		ID            int    `json:"id"`
+		Name          string `json:"name"`
+		FollowCount   int    `json:"follow_count"`
+		FollowerCount int    `json:"follower_count"`
+		IsFollow      bool   `json:"is_follow"`
+	}
+)
+
+@server(
+	prefix: douyin
+)
+service comment-api {
+	@handler comment
+	post /comment/action (getCommentRequest) returns (getCommentResponse)
+	
+	@handler getCommentList
+	post /comment/list (getCommentListRequest) returns (getCommentListResponse)
+	
+}

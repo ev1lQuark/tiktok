@@ -1,0 +1,59 @@
+type (
+	//点赞操作
+	//请求参数
+	likeRequest {
+		Token      string `json:"token"`
+		VideoId    string `json:"video_id"`
+		ActionType string `json:"action_type"`
+	}
+	//返回响应
+	likeResponse {
+		StatusCode int32  `json:"status_code"`
+		StatusMsg  string `json:"status_msg,omitempty"`
+	}
+
+	//喜欢列表操作
+	//请求参数
+	likeListRequest {
+		UserId string `json:"user_id"`
+		Token  string `json:"token"`
+	}
+	//返回响应
+	likeListResponse {
+		StatusCode string      `json:"status_code"`
+		StatusMsg  string      `json:"status_msg"`
+		VideoList  []VideoList `json:"video_list"`
+	}
+	//视频具体信息，返回响应中嵌入
+	VideoList {
+		ID            int    `json:"id"`
+		Author        Author `json:"author"`
+		PlayURL       string `json:"play_url"`
+		CoverURL      string `json:"cover_url"`
+		FavoriteCount int    `json:"favorite_count"`
+		CommentCount  int    `json:"comment_count"`
+		IsFavorite    bool   `json:"is_favorite"`
+		Title         string `json:"title"`
+	}
+	//作者信息，在videolist中被嵌入
+	Author {
+		ID            int    `json:"id"`
+		Name          string `json:"name"`
+		FollowCount   int    `json:"follow_count"`
+		FollowerCount int    `json:"follower_count"`
+		IsFollow      bool   `json:"is_follow"`
+	}
+)
+
+@server(
+	prefix: douyin
+)
+service like-api {
+	@handler like
+	post /favorite/action (likeRequest) returns (likeResponse)
+
+
+	@handler getLikeList
+	post /favorite/list (likeListRequest) returns (likeListResponse)
+	
+}
