@@ -7,6 +7,9 @@ import (
 
 type Config struct {
 	rest.RestConf
+	Video struct {
+		NumberLimit int
+	}
 	Mysql struct {
 		DataSource string
 	}

@@ -36,5 +36,9 @@ func (l *PublishActionLogic) PublishAction(req *types.PublishActionReq) (resp *t
 		return resp, nil
 	}
 
+	logx.Info("userId: %v", userId)
+
+	// TODO 业务逻辑
+
 	return
 }

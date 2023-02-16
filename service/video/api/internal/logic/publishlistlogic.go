@@ -6,7 +6,6 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/ev1lQuark/tiktok/common/config"
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
@@ -30,8 +29,15 @@ func NewPublishListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Publi
 }
 
 func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.PublishListReply, err error) {
-	//登录校验
-	jwt.ParseUserIdFromJwtToken(l.svcCtx.Config.Auth.AccessSecret, req.Token)
+	// 登录校验
+	_, err = jwt.ParseUserIdFromJwtToken(l.svcCtx.Config.Auth.AccessSecret, req.Token)
+	if err != nil {
+		resp = &types.PublishListReply{
+			StatusCode: res.AuthFailedCode,
+			StatusMsg:  "jwt 认证失败",
+		}
+		return resp, nil
+	}
 	// 参数校验
 	if len(req.UserID) == 0 {
 		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
@@ -42,10 +48,10 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
-	//查找last date最近视屏
+	// 查找last date最近视频
 	videoQuery := l.svcCtx.Query.Video
 
-	tableVideos, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.AuthorID.Eq(userId)).Order(videoQuery.PublishTime.Desc()).Find()
+	tableVideos, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.AuthorID.Eq(userId)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
 
 	if err != nil {
 		log.Printf("获取用户的视频发布列表失败：%v", err)
@@ -54,7 +60,7 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 	}
 	log.Printf("获取用户的视频发布列表成功：%v", tableVideos)
 
-	videos := make([]types.VideoList, 0, config.VideoCount)
+	videos := make([]types.VideoList, 0, l.svcCtx.Config.Video.NumberLimit)
 	for _, value := range tableVideos {
 		videos = append(videos, types.VideoList{
 			ID: int(value.ID),

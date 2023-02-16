@@ -1,6 +1,8 @@
 Name: video-api
 Host: 0.0.0.0
 Port: 8888
+Video:
+  NumberLimit: 30
 Mysql:
   DataSource: root:password@tcp(192.168.0.210:3306)/tiktok?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai
 CacheRedis:
