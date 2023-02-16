@@ -1,4 +1,7 @@
 package res
 
-const SuccessCode = 0
-const DefaultErrorCode = 1
+const (
+	SuccessCode    = iota // 0
+	BadRequestCode        // 1
+	AuthFailedCode
+)
