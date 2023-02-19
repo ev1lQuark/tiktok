@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "./user";
+
+message IdListReq{
+  repeated int64 idList = 1;
+}
+
+message NameListReply{
+  repeated string nameList = 1;
+}
+
+service user {
+  rpc getNames(IdListReq) returns(NameListReply);
+}
