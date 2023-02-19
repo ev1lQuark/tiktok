@@ -1,0 +1,11 @@
+Name: like-api
+Host: 0.0.0.0
+Port: 8888
+Mysql:
+  DataSource: root:password@tcp(192.168.0.210:3306)/tiktok?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai
+CacheRedis:
+  - Host: 192.168.0.210:6379
+    Type: node
+Auth:
+  AccessSecret: "tiktok89757"
+  AccessExpire: 7200
