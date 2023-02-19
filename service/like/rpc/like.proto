@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "./like";
+
+//请求
+
+message geteTotalFavoritedNumReq{
+  int64 userId = 1;
+}
+
+message getFavoriteCountByUserIdReq{
+  int64 userId = 1;
+}
+message isFavoriteReq{
+  int64 videoId = 1;
+}
+message getFavoriteCountByVideoIdReq{
+  int64 userId = 1;
+  int64 videoId = 2;
+}
+//响应
+message geteTotalFavoritedNumReply{
+  int64 count = 1;
+}
+message getFavoriteCountByUserIdReply{
+  int64 count = 1;
+
+}
+message isFavoriteReply{
+  bool isFavorite =1;
+}
+message etFavoriteCountByUserIdReply{
+  int64 count = 1;
+
+}
+
+service like {
+  //根据userId获取本账号所发视频获赞总数
+  rpc geteTotalFavoritedNum(getFavoriteCountByUserIdReq) returns(geteTotalFavoritedNumReply);
+  //根据userId获取本账号喜欢（点赞）总数
+  rpc getFavoriteCountByUserId(getFavoriteCountByUserIdReq) returns(getFavoriteCountByUserIdReply);
+  //根据videoId获取视屏点赞总数
+  rpc getFavoriteCountByVideoId(getFavoriteCountByVideoIdReq) returns(etFavoriteCountByUserIdReply);
+  //根据userId和videoId判断是否点赞
+  rpc isFavorite(isFavoriteReq) returns(isFavoriteReply);
+}
