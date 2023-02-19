@@ -2,8 +2,8 @@ package svc
 
 import (
 	"github.com/ev1lQuark/tiktok/common/db"
-	"github.com/ev1lQuark/tiktok/service/user/api/internal/config"
 	"github.com/ev1lQuark/tiktok/service/user/query"
+	"github.com/ev1lQuark/tiktok/service/user/rpc/internal/config"
 	"gorm.io/gorm"
 )
 
