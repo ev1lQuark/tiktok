@@ -17,5 +17,20 @@ Minio:
   ImageBucket: images
   AccessKey: X5PlA9BhVemu7sok
   SecretKey: eD3a5qXUAIUE5BtSqBkbnJMGSed9Jlhb
+UserRpc:
+  Etcd:
+    Hosts:
+      - 192.168.0.210:2379
+    Key: user.rpc
+CommentRpc:
+  Etcd:
+    Hosts:
+      - 192.168.0.210:2379
+    Key: comment.rpc
+LikeRpc:
+  Etcd:
+    Hosts:
+      - 192.168.0.210:2379
+    Key: like.rpc
 
 
