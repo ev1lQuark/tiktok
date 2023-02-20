@@ -23,11 +23,11 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type LikeClient interface {
 	// 根据userId获取本账号所发视频获赞总数
-	GeteTotalFavoritedNum(ctx context.Context, in *GetFavoriteCountByUserIdReq, opts ...grpc.CallOption) (*GeteTotalFavoritedNumReply, error)
+	GetTotalFavoriteNum(ctx context.Context, in *GetTotalFavoriteNumReq, opts ...grpc.CallOption) (*GetTotalFavoriteNumReply, error)
 	// 根据userId获取本账号喜欢（点赞）总数
 	GetFavoriteCountByUserId(ctx context.Context, in *GetFavoriteCountByUserIdReq, opts ...grpc.CallOption) (*GetFavoriteCountByUserIdReply, error)
 	// 根据videoId获取视屏点赞总数
-	GetFavoriteCountByVideoId(ctx context.Context, in *GetFavoriteCountByVideoIdReq, opts ...grpc.CallOption) (*EtFavoriteCountByUserIdReply, error)
+	GetFavoriteCountByVideoId(ctx context.Context, in *GetFavoriteCountByVideoIdReq, opts ...grpc.CallOption) (*GetFavoriteCountByVideoIdReply, error)
 	// 根据userId和videoId判断是否点赞
 	IsFavorite(ctx context.Context, in *IsFavoriteReq, opts ...grpc.CallOption) (*IsFavoriteReply, error)
 }
@@ -40,9 +40,9 @@ func NewLikeClient(cc grpc.ClientConnInterface) LikeClient {
 	return &likeClient{cc}
 }
 
-func (c *likeClient) GeteTotalFavoritedNum(ctx context.Context, in *GetFavoriteCountByUserIdReq, opts ...grpc.CallOption) (*GeteTotalFavoritedNumReply, error) {
-	out := new(GeteTotalFavoritedNumReply)
-	err := c.cc.Invoke(ctx, "/user.like/geteTotalFavoritedNum", in, out, opts...)
+func (c *likeClient) GetTotalFavoriteNum(ctx context.Context, in *GetTotalFavoriteNumReq, opts ...grpc.CallOption) (*GetTotalFavoriteNumReply, error) {
+	out := new(GetTotalFavoriteNumReply)
+	err := c.cc.Invoke(ctx, "/user.like/getTotalFavoriteNum", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +58,8 @@ func (c *likeClient) GetFavoriteCountByUserId(ctx context.Context, in *GetFavori
 	return out, nil
 }
 
-func (c *likeClient) GetFavoriteCountByVideoId(ctx context.Context, in *GetFavoriteCountByVideoIdReq, opts ...grpc.CallOption) (*EtFavoriteCountByUserIdReply, error) {
-	out := new(EtFavoriteCountByUserIdReply)
+func (c *likeClient) GetFavoriteCountByVideoId(ctx context.Context, in *GetFavoriteCountByVideoIdReq, opts ...grpc.CallOption) (*GetFavoriteCountByVideoIdReply, error) {
+	out := new(GetFavoriteCountByVideoIdReply)
 	err := c.cc.Invoke(ctx, "/user.like/getFavoriteCountByVideoId", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -81,11 +81,11 @@ func (c *likeClient) IsFavorite(ctx context.Context, in *IsFavoriteReq, opts ...
 // for forward compatibility
 type LikeServer interface {
 	// 根据userId获取本账号所发视频获赞总数
-	GeteTotalFavoritedNum(context.Context, *GetFavoriteCountByUserIdReq) (*GeteTotalFavoritedNumReply, error)
+	GetTotalFavoriteNum(context.Context, *GetTotalFavoriteNumReq) (*GetTotalFavoriteNumReply, error)
 	// 根据userId获取本账号喜欢（点赞）总数
 	GetFavoriteCountByUserId(context.Context, *GetFavoriteCountByUserIdReq) (*GetFavoriteCountByUserIdReply, error)
 	// 根据videoId获取视屏点赞总数
-	GetFavoriteCountByVideoId(context.Context, *GetFavoriteCountByVideoIdReq) (*EtFavoriteCountByUserIdReply, error)
+	GetFavoriteCountByVideoId(context.Context, *GetFavoriteCountByVideoIdReq) (*GetFavoriteCountByVideoIdReply, error)
 	// 根据userId和videoId判断是否点赞
 	IsFavorite(context.Context, *IsFavoriteReq) (*IsFavoriteReply, error)
 	mustEmbedUnimplementedLikeServer()
@@ -95,13 +95,13 @@ type LikeServer interface {
 type UnimplementedLikeServer struct {
 }
 
-func (UnimplementedLikeServer) GeteTotalFavoritedNum(context.Context, *GetFavoriteCountByUserIdReq) (*GeteTotalFavoritedNumReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GeteTotalFavoritedNum not implemented")
+func (UnimplementedLikeServer) GetTotalFavoriteNum(context.Context, *GetTotalFavoriteNumReq) (*GetTotalFavoriteNumReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTotalFavoriteNum not implemented")
 }
 func (UnimplementedLikeServer) GetFavoriteCountByUserId(context.Context, *GetFavoriteCountByUserIdReq) (*GetFavoriteCountByUserIdReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFavoriteCountByUserId not implemented")
 }
-func (UnimplementedLikeServer) GetFavoriteCountByVideoId(context.Context, *GetFavoriteCountByVideoIdReq) (*EtFavoriteCountByUserIdReply, error) {
+func (UnimplementedLikeServer) GetFavoriteCountByVideoId(context.Context, *GetFavoriteCountByVideoIdReq) (*GetFavoriteCountByVideoIdReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFavoriteCountByVideoId not implemented")
 }
 func (UnimplementedLikeServer) IsFavorite(context.Context, *IsFavoriteReq) (*IsFavoriteReply, error) {
@@ -120,20 +120,20 @@ func RegisterLikeServer(s grpc.ServiceRegistrar, srv LikeServer) {
 	s.RegisterService(&Like_ServiceDesc, srv)
 }
 
-func _Like_GeteTotalFavoritedNum_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFavoriteCountByUserIdReq)
+func _Like_GetTotalFavoriteNum_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTotalFavoriteNumReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LikeServer).GeteTotalFavoritedNum(ctx, in)
+		return srv.(LikeServer).GetTotalFavoriteNum(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/user.like/geteTotalFavoritedNum",
+		FullMethod: "/user.like/getTotalFavoriteNum",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LikeServer).GeteTotalFavoritedNum(ctx, req.(*GetFavoriteCountByUserIdReq))
+		return srv.(LikeServer).GetTotalFavoriteNum(ctx, req.(*GetTotalFavoriteNumReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -200,8 +200,8 @@ var Like_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*LikeServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "geteTotalFavoritedNum",
-			Handler:    _Like_GeteTotalFavoritedNum_Handler,
+			MethodName: "getTotalFavoriteNum",
+			Handler:    _Like_GetTotalFavoriteNum_Handler,
 		},
 		{
 			MethodName: "getFavoriteCountByUserId",

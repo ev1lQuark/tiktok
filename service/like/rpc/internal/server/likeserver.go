@@ -23,9 +23,9 @@ func NewLikeServer(svcCtx *svc.ServiceContext) *LikeServer {
 }
 
 // 根据userId获取本账号所发视频获赞总数
-func (s *LikeServer) GeteTotalFavoritedNum(ctx context.Context, in *like.GetFavoriteCountByUserIdReq) (*like.GeteTotalFavoritedNumReply, error) {
-	l := logic.NewGeteTotalFavoritedNumLogic(ctx, s.svcCtx)
-	return l.GeteTotalFavoritedNum(in)
+func (s *LikeServer) GetTotalFavoriteNum(ctx context.Context, in *like.GetTotalFavoriteNumReq) (*like.GetTotalFavoriteNumReply, error) {
+	l := logic.NewGetTotalFavoriteNumLogic(ctx, s.svcCtx)
+	return l.GetTotalFavoriteNum(in)
 }
 
 // 根据userId获取本账号喜欢（点赞）总数
@@ -35,7 +35,7 @@ func (s *LikeServer) GetFavoriteCountByUserId(ctx context.Context, in *like.GetF
 }
 
 // 根据videoId获取视屏点赞总数
-func (s *LikeServer) GetFavoriteCountByVideoId(ctx context.Context, in *like.GetFavoriteCountByVideoIdReq) (*like.EtFavoriteCountByUserIdReply, error) {
+func (s *LikeServer) GetFavoriteCountByVideoId(ctx context.Context, in *like.GetFavoriteCountByVideoIdReq) (*like.GetFavoriteCountByVideoIdReply, error) {
 	l := logic.NewGetFavoriteCountByVideoIdLogic(ctx, s.svcCtx)
 	return l.GetFavoriteCountByVideoId(in)
 }

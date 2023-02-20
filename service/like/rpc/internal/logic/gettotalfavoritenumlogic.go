@@ -10,14 +10,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type GeteTotalFavoritedNumLogic struct {
+type GetTotalFavoriteNumLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logx.Logger
 }
 
-func NewGeteTotalFavoritedNumLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GeteTotalFavoritedNumLogic {
-	return &GeteTotalFavoritedNumLogic{
+func NewGetTotalFavoriteNumLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetTotalFavoriteNumLogic {
+	return &GetTotalFavoriteNumLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
 		Logger: logx.WithContext(ctx),
@@ -25,8 +25,8 @@ func NewGeteTotalFavoritedNumLogic(ctx context.Context, svcCtx *svc.ServiceConte
 }
 
 // 根据userId获取本账号所发视频获赞总数
-func (l *GeteTotalFavoritedNumLogic) GeteTotalFavoritedNum(in *like.GetFavoriteCountByUserIdReq) (*like.GeteTotalFavoritedNumReply, error) {
-
+func (l *GetTotalFavoriteNumLogic) GetTotalFavoriteNum(in *like.GetTotalFavoriteNumReq) (*like.GetTotalFavoriteNumReply, error) {
+	// todo: add your logic here and delete this line
 	authorId := in.UserId
 	likeQuery := l.svcCtx.Query.Like
 	num, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.AuthorID.Eq(authorId[0])).Count()
@@ -40,5 +40,5 @@ func (l *GeteTotalFavoritedNumLogic) GeteTotalFavoritedNum(in *like.GetFavoriteC
 	}
 	var count []int64
 	count = append(count, num)
-	return &like.GeteTotalFavoritedNumReply{Count: count}, nil
+	return &like.GetTotalFavoriteNumReply{Count: count}, nil
 }
