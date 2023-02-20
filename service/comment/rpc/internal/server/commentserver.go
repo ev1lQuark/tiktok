@@ -11,19 +11,19 @@ import (
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/types/comment"
 )
 
-type LikeServer struct {
+type CommentServer struct {
 	svcCtx *svc.ServiceContext
-	comment.UnimplementedLikeServer
+	comment.UnimplementedCommentServer
 }
 
-func NewLikeServer(svcCtx *svc.ServiceContext) *LikeServer {
-	return &LikeServer{
+func NewCommentServer(svcCtx *svc.ServiceContext) *CommentServer {
+	return &CommentServer{
 		svcCtx: svcCtx,
 	}
 }
 
 // 根据videoId获取视屏评论总数
-func (s *LikeServer) GetCommentCountByVideoId(ctx context.Context, in *comment.GetFavoriteCountByVideoIdReq) (*comment.GetFavoriteCountByVideoIdReply, error) {
+func (s *CommentServer) GetCommentCountByVideoId(ctx context.Context, in *comment.GetComentCountByVideoIdReq) (*comment.GetComentCountByVideoIdReply, error) {
 	l := logic.NewGetCommentCountByVideoIdLogic(ctx, s.svcCtx)
 	return l.GetCommentCountByVideoId(in)
 }

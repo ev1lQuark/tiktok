@@ -25,7 +25,7 @@ func NewGetFavoriteCountByVideoIdLogic(ctx context.Context, svcCtx *svc.ServiceC
 }
 
 // 根据videoId获取视屏点赞总数
-func (l *GetFavoriteCountByVideoIdLogic) GetFavoriteCountByVideoId(in *like.GetFavoriteCountByVideoIdReq) (*like.EtFavoriteCountByUserIdReply, error) {
+func (l *GetFavoriteCountByVideoIdLogic) GetFavoriteCountByVideoId(in *like.GetFavoriteCountByVideoIdReq) (*like.GetFavoriteCountByVideoIdReply, error) {
 	// todo: add your logic here and delete this line
 	videoId := in.VideoId
 	likeQuery := l.svcCtx.Query.Like
@@ -40,5 +40,5 @@ func (l *GetFavoriteCountByVideoIdLogic) GetFavoriteCountByVideoId(in *like.GetF
 	}
 	var count []int64
 	count = append(count, num)
-	return &like.EtFavoriteCountByUserIdReply{Count: count}, nil
+	return &like.GetFavoriteCountByVideoIdReply{Count: count}, nil
 }
