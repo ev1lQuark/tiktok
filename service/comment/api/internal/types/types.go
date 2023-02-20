@@ -10,13 +10,13 @@ type GetCommentRequest struct {
 }
 
 type GetCommentResponse struct {
-	StatusCode int     `json:"status_code"`
+	StatusCode int64   `json:"status_code"`
 	StatusMsg  string  `json:"status_msg"`
 	Comment    Comment `json:"comment"`
 }
 
 type Comment struct {
-	ID         int    `json:"id"`
+	ID         int64  `json:"id"`
 	User       User   `json:"user"`
 	Content    string `json:"content"`
 	CreateDate string `json:"create_date"`
@@ -28,22 +28,22 @@ type GetCommentListRequest struct {
 }
 
 type GetCommentListResponse struct {
-	StatusCode  int           `json:"status_code"`
+	StatusCode  int64         `json:"status_code"`
 	StatusMsg   string        `json:"status_msg"`
 	CommentList []CommentList `json:"comment_list"`
 }
 
 type CommentList struct {
-	ID         int    `json:"id"`
+	ID         int64  `json:"id"`
 	User       User   `json:"user"`
 	Content    string `json:"content"`
 	CreateDate string `json:"create_date"`
 }
 
 type User struct {
-	ID            int    `json:"id"`
+	ID            int64  `json:"id"`
 	Name          string `json:"name"`
-	FollowCount   int    `json:"follow_count"`
-	FollowerCount int    `json:"follower_count"`
+	FollowCount   int64  `json:"follow_count"`
+	FollowerCount int64  `json:"follower_count"`
 	IsFollow      bool   `json:"is_follow"`
 }
