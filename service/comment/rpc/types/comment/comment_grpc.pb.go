@@ -18,88 +18,88 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// LikeClient is the client API for Like service.
+// CommentClient is the client API for Comment service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type LikeClient interface {
+type CommentClient interface {
 	// 根据videoId获取视屏评论总数
-	GetCommentCountByVideoId(ctx context.Context, in *GetFavoriteCountByVideoIdReq, opts ...grpc.CallOption) (*GetFavoriteCountByVideoIdReply, error)
+	GetCommentCountByVideoId(ctx context.Context, in *GetComentCountByVideoIdReq, opts ...grpc.CallOption) (*GetComentCountByVideoIdReply, error)
 }
 
-type likeClient struct {
+type commentClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewLikeClient(cc grpc.ClientConnInterface) LikeClient {
-	return &likeClient{cc}
+func NewCommentClient(cc grpc.ClientConnInterface) CommentClient {
+	return &commentClient{cc}
 }
 
-func (c *likeClient) GetCommentCountByVideoId(ctx context.Context, in *GetFavoriteCountByVideoIdReq, opts ...grpc.CallOption) (*GetFavoriteCountByVideoIdReply, error) {
-	out := new(GetFavoriteCountByVideoIdReply)
-	err := c.cc.Invoke(ctx, "/user.like/getCommentCountByVideoId", in, out, opts...)
+func (c *commentClient) GetCommentCountByVideoId(ctx context.Context, in *GetComentCountByVideoIdReq, opts ...grpc.CallOption) (*GetComentCountByVideoIdReply, error) {
+	out := new(GetComentCountByVideoIdReply)
+	err := c.cc.Invoke(ctx, "/user.comment/getCommentCountByVideoId", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// LikeServer is the server API for Like service.
-// All implementations must embed UnimplementedLikeServer
+// CommentServer is the server API for Comment service.
+// All implementations must embed UnimplementedCommentServer
 // for forward compatibility
-type LikeServer interface {
+type CommentServer interface {
 	// 根据videoId获取视屏评论总数
-	GetCommentCountByVideoId(context.Context, *GetFavoriteCountByVideoIdReq) (*GetFavoriteCountByVideoIdReply, error)
-	mustEmbedUnimplementedLikeServer()
+	GetCommentCountByVideoId(context.Context, *GetComentCountByVideoIdReq) (*GetComentCountByVideoIdReply, error)
+	mustEmbedUnimplementedCommentServer()
 }
 
-// UnimplementedLikeServer must be embedded to have forward compatible implementations.
-type UnimplementedLikeServer struct {
+// UnimplementedCommentServer must be embedded to have forward compatible implementations.
+type UnimplementedCommentServer struct {
 }
 
-func (UnimplementedLikeServer) GetCommentCountByVideoId(context.Context, *GetFavoriteCountByVideoIdReq) (*GetFavoriteCountByVideoIdReply, error) {
+func (UnimplementedCommentServer) GetCommentCountByVideoId(context.Context, *GetComentCountByVideoIdReq) (*GetComentCountByVideoIdReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCommentCountByVideoId not implemented")
 }
-func (UnimplementedLikeServer) mustEmbedUnimplementedLikeServer() {}
+func (UnimplementedCommentServer) mustEmbedUnimplementedCommentServer() {}
 
-// UnsafeLikeServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to LikeServer will
+// UnsafeCommentServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to CommentServer will
 // result in compilation errors.
-type UnsafeLikeServer interface {
-	mustEmbedUnimplementedLikeServer()
+type UnsafeCommentServer interface {
+	mustEmbedUnimplementedCommentServer()
 }
 
-func RegisterLikeServer(s grpc.ServiceRegistrar, srv LikeServer) {
-	s.RegisterService(&Like_ServiceDesc, srv)
+func RegisterCommentServer(s grpc.ServiceRegistrar, srv CommentServer) {
+	s.RegisterService(&Comment_ServiceDesc, srv)
 }
 
-func _Like_GetCommentCountByVideoId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFavoriteCountByVideoIdReq)
+func _Comment_GetCommentCountByVideoId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetComentCountByVideoIdReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LikeServer).GetCommentCountByVideoId(ctx, in)
+		return srv.(CommentServer).GetCommentCountByVideoId(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/user.like/getCommentCountByVideoId",
+		FullMethod: "/user.comment/getCommentCountByVideoId",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LikeServer).GetCommentCountByVideoId(ctx, req.(*GetFavoriteCountByVideoIdReq))
+		return srv.(CommentServer).GetCommentCountByVideoId(ctx, req.(*GetComentCountByVideoIdReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Like_ServiceDesc is the grpc.ServiceDesc for Like service.
+// Comment_ServiceDesc is the grpc.ServiceDesc for Comment service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Like_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "user.like",
-	HandlerType: (*LikeServer)(nil),
+var Comment_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "user.comment",
+	HandlerType: (*CommentServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "getCommentCountByVideoId",
-			Handler:    _Like_GetCommentCountByVideoId_Handler,
+			Handler:    _Comment_GetCommentCountByVideoId_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

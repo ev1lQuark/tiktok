@@ -18,8 +18,8 @@ message isFavoriteReq{
   repeated int64 userId = 2;
 }
 message getFavoriteCountByVideoIdReq{
-  repeated int64 userId = 1;
-  repeated int64 videoId = 2;
+
+  repeated int64 videoId = 1;
 }
 //响应
 message geteTotalFavoritedNumReply{
