@@ -15,4 +15,7 @@ Minio:
   Endpoint: 192.168.0.210:9000
   VideoBucket: videos
   ImageBucket: images
+  AccessKey: X5PlA9BhVemu7sok
+  SecretKey: eD3a5qXUAIUE5BtSqBkbnJMGSed9Jlhb
+
 

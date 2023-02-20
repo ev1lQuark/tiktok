@@ -57,8 +57,8 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 			ID: int(value.ID),
 			// todo: add rpc Author
 			// Author:
-			PlayURL:  value.PlayURL,
-			CoverURL: value.CoverURL,
+			PlayURL:  l.svcCtx.Config.Minio.Endpoint + "/" + value.PlayURL,
+			CoverURL: l.svcCtx.Config.Minio.Endpoint + "/" + value.CoverURL,
 			//todo: add rpc favorite_count comment_count
 			//FavoriteCount: val.
 			//CommentCount:

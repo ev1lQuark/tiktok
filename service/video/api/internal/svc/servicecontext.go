@@ -4,6 +4,7 @@ import (
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/config"
 	"github.com/ev1lQuark/tiktok/service/video/query"
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -21,7 +22,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 	query := query.Use(db)
 
-	mc, err := minio.New(c.Minio.Endpoint, &minio.Options{})
+	mc, err := minio.New(c.Minio.Endpoint, &minio.Options{
+		Creds: credentials.NewStaticV4(c.Minio.AccessKey, c.Minio.SecretKey, ""),
+	})
 	if err != nil {
 		panic(err)
 	}

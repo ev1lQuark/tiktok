@@ -16,9 +16,12 @@ func publishActionHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
-
+		file, fileHeader, err := r.FormFile("data")
+		if err != nil {
+			httpx.ErrorCtx(r.Context(), w, err)
+		}
 		l := logic.NewPublishActionLogic(r.Context(), svcCtx)
-		resp, err := l.PublishAction(&req)
+		resp, err := l.PublishAction(&req, &file, fileHeader)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 		} else {

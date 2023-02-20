@@ -22,5 +22,7 @@ type Config struct {
 		Endpoint    string
 		VideoBucket string
 		ImageBucket string
+		AccessKey   string
+		SecretKey   string
 	}
 }

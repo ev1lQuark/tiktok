@@ -6,7 +6,6 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/types"
@@ -30,14 +29,14 @@ func NewPublishListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Publi
 
 func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.PublishListReply, err error) {
 	// 登录校验
-	_, err = jwt.ParseUserIdFromJwtToken(l.svcCtx.Config.Auth.AccessSecret, req.Token)
-	if err != nil {
-		resp = &types.PublishListReply{
-			StatusCode: res.AuthFailedCode,
-			StatusMsg:  "jwt 认证失败",
-		}
-		return resp, nil
-	}
+	//_, err = jwt.ParseUserIdFromJwtToken(l.svcCtx.Config.Auth.AccessSecret, req.Token)
+	//if err != nil {
+	//	resp = &types.PublishListReply{
+	//		StatusCode: res.AuthFailedCode,
+	//		StatusMsg:  "jwt 认证失败",
+	//	}
+	//	return resp, nil
+	//}
 	// 参数校验
 	if len(req.UserID) == 0 {
 		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
@@ -66,8 +65,8 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 			ID: int(value.ID),
 			//todo add rpc Author
 			//Author:
-			PlayURL:  value.PlayURL,
-			CoverURL: value.CoverURL,
+			PlayURL:  l.svcCtx.Config.Minio.Endpoint + "/" + value.PlayURL,
+			CoverURL: l.svcCtx.Config.Minio.Endpoint + "/" + value.CoverURL,
 			//todo add rpc favorite_count comment_count
 			//FavoriteCount: val.
 			//CommentCount:

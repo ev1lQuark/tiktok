@@ -14,11 +14,17 @@ type FeedReply struct {
 }
 
 type Author struct {
-	ID            int    `json:"id"`
-	Name          string `json:"name"`
-	FollowCount   int    `json:"follow_count"`
-	FollowerCount int    `json:"follower_count"`
-	IsFollow      bool   `json:"is_follow"`
+	ID              int    `json:"id"`
+	Name            string `json:"name"`
+	FollowCount     int    `json:"follow_count"`
+	FollowerCount   int    `json:"follower_count"`
+	IsFollow        bool   `json:"is_follow"`
+	Avatar          string `json:"avatar"`
+	BackgroundImage string `json:"background_image"`
+	Signature       string `json:"signature"`
+	TotalFavorited  string `json:"total_favorited"`
+	WorkCount       int    `json:"work_count"`
+	FavoriteCount   int    `json:"favorite_count"`
 }
 
 type VideoList struct {
@@ -33,7 +39,6 @@ type VideoList struct {
 }
 
 type PublishActionReq struct {
-	Data  []byte `form:"data"`
 	Token string `form:"token"`
 	Title string `form:"title"`
 }
