@@ -26,14 +26,17 @@ func NewGetNamesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetNames
 func (l *GetNamesLogic) GetNames(in *user.IdListReq) (*user.NameListReply, error) {
 	u := l.svcCtx.Query.User
 
-	userList, err := u.WithContext(context.TODO()).Select(u.Name).Where(u.ID.In(in.IdList...)).Find()
-	if err != nil {
-		return nil, err
-	}
-
-	nameList := make([]string, 0, len(userList))
-	for _, u := range userList {
-		nameList = append(nameList, u.Name)
+	nameList := make([]string, 0, len(in.IdList))
+	for _, id := range in.IdList {
+		user, err := u.WithContext(context.TODO()).Select(u.Name).Where(u.ID.Eq(id)).Find()
+		if err != nil {
+			return nil, err
+		}
+		if len(user) == 0 {
+			nameList = append(nameList, "")
+		} else {
+			nameList = append(nameList, user[0].Name)
+		}
 	}
 
 	return &user.NameListReply{

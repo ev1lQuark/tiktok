@@ -1,5 +1,5 @@
 Name: comment.rpc
-ListenOn: 0.0.0.0:8080
+ListenOn: 0.0.0.0:8081
 Etcd:
   Hosts:
     - 192.168.0.210:2379
@@ -9,6 +9,3 @@ Mysql:
 CacheRedis:
   - Host: 192.168.0.210:6379
     Type: node
-Auth:
-  AccessSecret: "tiktok89757"
-  AccessExpire: 7200

@@ -2,8 +2,6 @@ package logic
 
 import (
 	"context"
-	"gorm.io/gorm"
-
 	"github.com/ev1lQuark/tiktok/service/like/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 
@@ -27,23 +25,19 @@ func NewIsFavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *IsFavo
 // 根据userId和videoId判断是否点赞
 func (l *IsFavoriteLogic) IsFavorite(in *like.IsFavoriteReq) (*like.IsFavoriteReply, error) {
 	// todo: add your logic here and delete this line
-	videoId := in.VideoId
-	userId := in.UserId
+
 	likeQuery := l.svcCtx.Query.Like
-	isF := false
-	count, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(videoId[0])).Where(likeQuery.UserID.Eq(userId[0])).Count()
-	if err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			break
-		default:
+	isList := make([]bool, 0, len(in.VideoId))
+	for index, _ := range in.UserId {
+		count, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(in.VideoId[index])).Where(likeQuery.UserID.Eq(in.UserId[index])).Where(likeQuery.Cancel.Eq(1)).Count()
+		if err != nil {
 			return nil, err
 		}
+		if count > 0 {
+			isList = append(isList, true)
+		} else {
+			isList = append(isList, false)
+		}
 	}
-	if count > 0 {
-		isF = true
-	}
-	var isFavorite []bool
-	isFavorite = append(isFavorite, isF)
-	return &like.IsFavoriteReply{IsFavorite: isFavorite}, nil
+	return &like.IsFavoriteReply{IsFavorite: isList}, nil
 }

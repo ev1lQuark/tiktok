@@ -2,8 +2,6 @@ package logic
 
 import (
 	"context"
-	"gorm.io/gorm"
-
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/types/comment"
 
@@ -27,18 +25,15 @@ func NewGetCommentCountByVideoIdLogic(ctx context.Context, svcCtx *svc.ServiceCo
 // 根据videoId获取视屏评论总数
 func (l *GetCommentCountByVideoIdLogic) GetCommentCountByVideoId(in *comment.GetComentCountByVideoIdReq) (*comment.GetComentCountByVideoIdReply, error) {
 	// todo: add your logic here and delete this line
-	videoId := in.VideoId
+
 	commentQuery := l.svcCtx.Query.Comment
-	num, err := commentQuery.WithContext(context.TODO()).Where(commentQuery.VideoID.Eq(videoId[0])).Count()
-	if err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			break
-		default:
+	numList := make([]int64, 0, len(in.VideoId))
+	for _, videoId := range in.VideoId {
+		num, err := commentQuery.WithContext(context.TODO()).Where(commentQuery.VideoID.Eq(videoId)).Count()
+		if err != nil {
 			return nil, err
 		}
+		numList = append(numList, num)
 	}
-	var count []int64
-	count = append(count, num)
-	return &comment.GetComentCountByVideoIdReply{Count: count}, nil
+	return &comment.GetComentCountByVideoIdReply{Count: numList}, nil
 }
