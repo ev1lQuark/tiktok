@@ -3,7 +3,6 @@ package logic
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/ev1lQuark/tiktok/common/encrypt"
 	"github.com/ev1lQuark/tiktok/common/jwt"
@@ -57,7 +56,7 @@ func (l *LoginLogic) Login(req *types.LoginOrRegisterReq) (resp *types.LoginOrRe
 	}
 
 	// 生成token
-	token, err := jwt.GetJwtToken(l.svcCtx.Config.Auth.AccessSecret, time.Now().Unix(), l.svcCtx.Config.Auth.AccessExpire, user.ID)
+	token, err := jwt.Create(l.svcCtx.Config.Auth.AccessSecret, l.svcCtx.Config.Auth.AccessExpire, user.ID)
 	if err != nil {
 		return nil, err
 	}

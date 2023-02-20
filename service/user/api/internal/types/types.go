@@ -14,7 +14,7 @@ type LoginOrRegisterReply struct {
 }
 
 type UserInfoReq struct {
-	UserId string `form:"user_id"`
+	UserId int64  `form:"user_id"`
 	Token  string `form:"token"`
 }
 
