@@ -3,6 +3,8 @@ package logic
 import (
 	"context"
 
+	"github.com/ev1lQuark/tiktok/common/jwt"
+	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/user/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/user/api/internal/types"
 
@@ -24,7 +26,25 @@ func NewUserInfoLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UserInfo
 }
 
 func (l *UserInfoLogic) UserInfo(req *types.UserInfoReq) (resp *types.UserInfoReply, err error) {
-	// todo: add your logic here and delete this line
+	if !jwt.Verify(l.svcCtx.Config.Auth.AccessSecret, req.Token) {
+		return &types.UserInfoReply{
+			StautsCode: res.AuthFailedCode,
+			StatusMsg:  "jwt 认证失败",
+		}, nil
+	}
+
+	u := l.svcCtx.Query.User
+	user, err := u.WithContext(context.TODO()).Where(u.ID.Eq(req.UserId)).First()
+	if err != nil {
+		resp = &types.UserInfoReply{
+			StautsCode: res.BadRequestCode,
+			StatusMsg:  "user not found",
+		}
+		return resp, nil
+	}
+
+	logx.Debug(user)
+	// TODO 完成UserInfo剩余逻辑
 
 	return
 }

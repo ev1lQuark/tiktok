@@ -12,7 +12,7 @@ type (
 	}
 
 	UserInfoReq {
-		UserId string `form:"user_id"`
+		UserId int64  `form:"user_id"`
 		Token  string `form:"token"`
 	}
 
