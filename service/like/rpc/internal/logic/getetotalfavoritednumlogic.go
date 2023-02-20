@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"gorm.io/gorm"
 
 	"github.com/ev1lQuark/tiktok/service/like/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
@@ -25,10 +26,19 @@ func NewGeteTotalFavoritedNumLogic(ctx context.Context, svcCtx *svc.ServiceConte
 
 // 根据userId获取本账号所发视频获赞总数
 func (l *GeteTotalFavoritedNumLogic) GeteTotalFavoritedNum(in *like.GetFavoriteCountByUserIdReq) (*like.GeteTotalFavoritedNumReply, error) {
-	// todo: add your logic here and delete this line
-	authorId :=in.UserId
-	likeQuery := l.svcCtx.Query.Like
-	count, err := likeQuery.WithContext(context.TODO()).Where(likeQuery..Eq("modi")).Count()
 
-	return &like.GeteTotalFavoritedNumReply{}, nil
+	authorId := in.UserId
+	likeQuery := l.svcCtx.Query.Like
+	num, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.AuthorID.Eq(authorId[0])).Count()
+	if err != nil {
+		switch err {
+		case gorm.ErrRecordNotFound:
+			break
+		default:
+			return nil, err
+		}
+	}
+	var count []int64
+	count = append(count, num)
+	return &like.GeteTotalFavoritedNumReply{Count: count}, nil
 }

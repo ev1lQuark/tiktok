@@ -7,32 +7,33 @@ option go_package = "./like";
 //请求
 
 message geteTotalFavoritedNumReq{
-  int64 userId = 1;
+  repeated int64 userId = 1;
 }
 
 message getFavoriteCountByUserIdReq{
-  int64 userId = 1;
+  repeated int64 userId = 1;
 }
 message isFavoriteReq{
-  int64 videoId = 1;
+  repeated int64 videoId = 1;
+  repeated int64 userId = 2;
 }
 message getFavoriteCountByVideoIdReq{
-  int64 userId = 1;
-  int64 videoId = 2;
+  repeated int64 userId = 1;
+  repeated int64 videoId = 2;
 }
 //响应
 message geteTotalFavoritedNumReply{
-  int64 count = 1;
+  repeated int64 count = 1;
 }
 message getFavoriteCountByUserIdReply{
-  int64 count = 1;
+  repeated int64 count = 1;
 
 }
 message isFavoriteReply{
-  bool isFavorite =1;
+  repeated bool isFavorite =1;
 }
 message etFavoriteCountByUserIdReply{
-  int64 count = 1;
+  repeated int64 count = 1;
 
 }
 

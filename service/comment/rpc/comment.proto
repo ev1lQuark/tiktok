@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "./comment";
+
+//请求
+
+message getFavoriteCountByVideoIdReq{
+  repeated int64 videoId = 1;
+}
+
+//响应
+message getFavoriteCountByVideoIdReply{
+  repeated int64 count = 1;
+}
+
+
+service like {
+  //根据videoId获取视屏评论总数
+  rpc getCommentCountByVideoId(getFavoriteCountByVideoIdReq) returns(getFavoriteCountByVideoIdReply);
+
+}
