@@ -36,5 +36,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Query:       query.Use(db.NewMysqlConn(c.Mysql.DataSource, &gorm.Config{})),
 		MinioClient: mc,
 		UserRpc:     userclient.NewUser(zrpc.MustNewClient(c.UserRpc)),
+		CommentRpc:  commentclient.NewComment(zrpc.MustNewClient(c.CommentRpc)),
+		LikeRpc:     likeclient.NewLike(zrpc.MustNewClient(c.LikeRpc)),
 	}
 }
