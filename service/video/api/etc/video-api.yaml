@@ -1,0 +1,21 @@
+Name: video-api
+Host: 0.0.0.0
+Port: 8888
+Video:
+  NumberLimit: 30
+Mysql:
+  DataSource: root:password@tcp(192.168.0.210:3306)/tiktok?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai
+CacheRedis:
+  - Host: 192.168.0.210:6379
+    Type: node
+Auth:
+  AccessSecret: "tiktok89757"
+  AccessExpire: 7200
+Minio:
+  Endpoint: 192.168.0.210:9000
+  VideoBucket: videos
+  ImageBucket: images
+  AccessKey: X5PlA9BhVemu7sok
+  SecretKey: eD3a5qXUAIUE5BtSqBkbnJMGSed9Jlhb
+
+
