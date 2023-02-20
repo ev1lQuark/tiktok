@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package video;
+
+option go_package = "./video";
+
+message VideoIdReq{
+  repeated int64 videoId = 1;
+}
+
+message VideoInfoReply{
+  repeated int64  authorId = 1;
+  repeated string playUrl = 2;
+  repeated string coverUrl = 3;
+  repeated string publishTime = 4;
+  repeated string title = 5;
+}
+
+service video {
+  rpc getVideoByVideoId(VideoIdReq) returns(VideoInfoReply);
+}
