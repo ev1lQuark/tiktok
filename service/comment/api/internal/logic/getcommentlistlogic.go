@@ -2,15 +2,12 @@ package logic
 
 import (
 	"context"
-
+	"fmt"
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
-
-	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
-	"github.com/ev1lQuark/tiktok/service/comment/api/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/sync/errgroup"
@@ -37,7 +34,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 
 	_, err = jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	if err != nil {
-		logx.Error(err)
+		logx.Errorf("jwt 认证失败%w", err)
 		resp = &types.GetCommentListResponse{
 			StatusCode: res.AuthFailedCode,
 			StatusMsg:  "jwt 认证失败",
@@ -47,7 +44,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	// 校验参数
 	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
 	if err != nil {
-		logx.Error(err)
+		logx.Errorf("参数错误%w", err)
 		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
@@ -56,11 +53,10 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	commentQuery := l.svcCtx.Query.Comment
 
 	// 查找数据库，获取了comment表的内容,需要对result进行处理
-	tableComments, err := commentQuery.WithContext(context.TODO()).Where(commentQuery.VideoID.Eq(videoId)).Where(commentQuery.Cancel.Eq(1)).Order(commentQuery.CreatDate.Desc()).Find()
+	tableComments, err := commentQuery.WithContext(context.TODO()).Where(commentQuery.VideoID.Eq(videoId)).Where(commentQuery.Cancel.Eq(0)).Order(commentQuery.CreatDate.Desc()).Find()
 	if err != nil {
-		msg := "查询出错"
-		logx.Error(msg + err.Error())
-		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}
+		logx.Errorf("查询错误", err)
+		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
 		return resp, nil
 	}
 	//
@@ -114,8 +110,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询评论列表失败"}
 		return resp, nil
 	}
-
-	commentList := make([]types.CommentList, len(tableComments))
+	commentList := make([]types.CommentList, 0, len(tableComments))
 	for index, value := range tableComments {
 		//对每个评论进行整理
 		comment := types.CommentList{
@@ -138,7 +133,6 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		}
 		commentList = append(commentList, comment)
 	}
-
 	resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "获取评论列表成功", CommentList: commentList}
 	return resp, nil
 }

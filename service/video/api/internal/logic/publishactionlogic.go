@@ -1,19 +1,26 @@
 package logic
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"strings"
+
 	"github.com/chilts/sid"
 	"github.com/minio/minio-go/v7"
-	"mime/multipart"
 
+	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/types"
 	"github.com/ev1lQuark/tiktok/service/video/model"
 
-	"github.com/zeromicro/go-zero/core/logx"
 	"time"
+
+	ffmpeg "github.com/u2takey/ffmpeg-go"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type PublishActionLogic struct {
@@ -32,42 +39,45 @@ func NewPublishActionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Pub
 
 func (l *PublishActionLogic) PublishAction(req *types.PublishActionReq, file *multipart.File, fileHeader *multipart.FileHeader) (resp *types.PublishActionReply, err error) {
 	// Parse jwt token
-	//userId, err := jwt.ParseUserIdFromJwtToken(l.svcCtx.Config.Auth.AccessSecret, req.Token)
-	//if err != nil {
-	//	resp = &types.PublishActionReply{
-	//		StatusCode: res.AuthFailedCode,
-	//		StatusMsg:  "jwt 认证失败",
-	//	}
-	//	return resp, nil
-	//}
-	//logx.Info("userId: %v", userId)
-	userId := int64(1)
-	// TODO 业务逻辑
+	userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
+	if err != nil {
+		logx.Error(err)
+		resp = &types.PublishActionReply{
+			StatusCode: res.AuthFailedCode,
+			StatusMsg:  "jwt 认证失败",
+		}
+		return resp, nil
+	}
+
 	// uuid 视频
 	videoId := sid.Id()
 	videoName := videoId + fileHeader.Filename
+	// 上传视频
 	_, err = l.svcCtx.MinioClient.PutObject(context.TODO(), l.svcCtx.Config.Minio.VideoBucket, videoName, *file, fileHeader.Size, minio.PutObjectOptions{})
 	if err != nil {
 		logx.Error("upload object error " + err.Error())
-		resp = &types.PublishActionReply{StatusCode: res.BadRequestCode, StatusMsg: "上传失败"}
+		resp = &types.PublishActionReply{StatusCode: res.InternalServerErrorCode, StatusMsg: "视频上传失败"}
 		return resp, nil
 	}
 	videoUrl := "/" + "videos/" + videoName
 
 	// uuid 封面
 	imageId := sid.Id()
-	imageName := imageId + fileHeader.Filename
+	imageName := imageId + fileHeader.Filename[:strings.LastIndex(fileHeader.Filename, ".")] + ".jpg"
 
-	//todo add video to image
-	imageFile := file
+	// 视频抽帧作为封面
+	imageFile, err := readFrameFromVideo(fmt.Sprintf("http://%s%s", l.svcCtx.Config.Minio.Endpoint, videoUrl))
+	if err != nil {
+		logx.Error("read frame from video error " + err.Error())
+		resp = &types.PublishActionReply{StatusCode: res.InternalServerErrorCode, StatusMsg: "视频截取封面出错"}
+		return resp, nil
+	}
 
-	//
-
-	_, err = l.svcCtx.MinioClient.PutObject(context.TODO(), l.svcCtx.Config.Minio.ImageBucket, imageName, *imageFile, fileHeader.Size, minio.PutObjectOptions{})
-
+	// 上传封面图
+	_, err = l.svcCtx.MinioClient.PutObject(context.TODO(), l.svcCtx.Config.Minio.ImageBucket, imageName, imageFile, -1, minio.PutObjectOptions{})
 	if err != nil {
 		logx.Error("upload object error " + err.Error())
-		resp = &types.PublishActionReply{StatusCode: res.BadRequestCode, StatusMsg: "上传失败"}
+		resp = &types.PublishActionReply{StatusCode: res.InternalServerErrorCode, StatusMsg: "封面图上传失败"}
 		return resp, nil
 	}
 	imageUrl := "/" + "images/" + imageName
@@ -89,4 +99,16 @@ func (l *PublishActionLogic) PublishAction(req *types.PublishActionReq, file *mu
 	}
 	resp = &types.PublishActionReply{StatusCode: res.SuccessCode, StatusMsg: "发布成功"}
 	return resp, nil
+}
+
+func readFrameFromVideo(inputUrl string) (frame io.Reader, err error) {
+	outBuf := bytes.NewBuffer(nil)
+	err = ffmpeg.Input(inputUrl).
+		Output("pipe:", ffmpeg.KwArgs{"vframes": 1, "format": "image2", "vcodec": "mjpeg"}).WithOutput(outBuf).Run()
+	if err != nil {
+		logx.Error(err)
+		return nil, err
+	}
+	frame = outBuf
+	return frame, err
 }

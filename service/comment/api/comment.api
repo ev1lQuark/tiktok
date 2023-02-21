@@ -7,7 +7,7 @@ type (
 		VideoId     string `form:"video_id"`
 		ActionType  string `form:"action_type"`
 		CommentText string `form:"comment_text"`
-		CommentId   string `form:"comment_id"`
+		CommentId   string `form:"comment_id,optional"`
 	}
 	//返回响应
 	getCommentResponse {
@@ -66,6 +66,6 @@ service comment-api {
 	post /comment/action (getCommentRequest) returns (getCommentResponse)
 	
 	@handler getCommentList
-	post /comment/list (getCommentListRequest) returns (getCommentListResponse)
+	get /comment/list (getCommentListRequest) returns (getCommentListResponse)
 	
 }
