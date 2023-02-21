@@ -13,11 +13,14 @@ import (
 )
 
 type (
+	AuthorIdReq    = video.AuthorIdReq
 	VideoIdReq     = video.VideoIdReq
 	VideoInfoReply = video.VideoInfoReply
+	VideoNumReply  = video.VideoNumReply
 
 	Video interface {
 		GetVideoByVideoId(ctx context.Context, in *VideoIdReq, opts ...grpc.CallOption) (*VideoInfoReply, error)
+		GetVideoNumByAuthorId(ctx context.Context, in *AuthorIdReq, opts ...grpc.CallOption) (*VideoNumReply, error)
 	}
 
 	defaultVideo struct {
@@ -34,4 +37,9 @@ func NewVideo(cli zrpc.Client) Video {
 func (m *defaultVideo) GetVideoByVideoId(ctx context.Context, in *VideoIdReq, opts ...grpc.CallOption) (*VideoInfoReply, error) {
 	client := video.NewVideoClient(m.cli.Conn())
 	return client.GetVideoByVideoId(ctx, in, opts...)
+}
+
+func (m *defaultVideo) GetVideoNumByAuthorId(ctx context.Context, in *AuthorIdReq, opts ...grpc.CallOption) (*VideoNumReply, error) {
+	client := video.NewVideoClient(m.cli.Conn())
+	return client.GetVideoNumByAuthorId(ctx, in, opts...)
 }

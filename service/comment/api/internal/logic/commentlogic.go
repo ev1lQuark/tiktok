@@ -83,6 +83,7 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 			resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
 			return resp, nil
 		}
+		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论成功"}
 	} else if actionType == 2 {
 		commentQuery := l.svcCtx.Query.Comment
 		_, err = commentQuery.WithContext(context.TODO()).Where(commentQuery.ID.Eq(commentId)).Update(commentQuery.Cancel, 1)
@@ -90,7 +91,7 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 			resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论失败"}
 			return resp, nil
 		}
+		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论成功"}
 	}
-
-	return
+	return resp, nil
 }

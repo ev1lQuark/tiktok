@@ -16,6 +16,15 @@ message VideoInfoReply{
   repeated string title = 5;
 }
 
+message AuthorIdReq{
+  repeated int64 authorId = 1;
+}
+
+message VideoNumReply {
+  repeated int64 videoNum = 1;
+}
+
 service video {
   rpc getVideoByVideoId(VideoIdReq) returns(VideoInfoReply);
+  rpc getVideoNumByAuthorId(AuthorIdReq) returns(VideoNumReply);
 }

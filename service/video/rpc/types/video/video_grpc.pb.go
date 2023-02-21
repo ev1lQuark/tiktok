@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type VideoClient interface {
 	GetVideoByVideoId(ctx context.Context, in *VideoIdReq, opts ...grpc.CallOption) (*VideoInfoReply, error)
+	GetVideoNumByAuthorId(ctx context.Context, in *AuthorIdReq, opts ...grpc.CallOption) (*VideoNumReply, error)
 }
 
 type videoClient struct {
@@ -42,11 +43,21 @@ func (c *videoClient) GetVideoByVideoId(ctx context.Context, in *VideoIdReq, opt
 	return out, nil
 }
 
+func (c *videoClient) GetVideoNumByAuthorId(ctx context.Context, in *AuthorIdReq, opts ...grpc.CallOption) (*VideoNumReply, error) {
+	out := new(VideoNumReply)
+	err := c.cc.Invoke(ctx, "/video.video/getVideoNumByAuthorId", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VideoServer is the server API for Video service.
 // All implementations must embed UnimplementedVideoServer
 // for forward compatibility
 type VideoServer interface {
 	GetVideoByVideoId(context.Context, *VideoIdReq) (*VideoInfoReply, error)
+	GetVideoNumByAuthorId(context.Context, *AuthorIdReq) (*VideoNumReply, error)
 	mustEmbedUnimplementedVideoServer()
 }
 
@@ -56,6 +67,9 @@ type UnimplementedVideoServer struct {
 
 func (UnimplementedVideoServer) GetVideoByVideoId(context.Context, *VideoIdReq) (*VideoInfoReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVideoByVideoId not implemented")
+}
+func (UnimplementedVideoServer) GetVideoNumByAuthorId(context.Context, *AuthorIdReq) (*VideoNumReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVideoNumByAuthorId not implemented")
 }
 func (UnimplementedVideoServer) mustEmbedUnimplementedVideoServer() {}
 
@@ -88,6 +102,24 @@ func _Video_GetVideoByVideoId_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Video_GetVideoNumByAuthorId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AuthorIdReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VideoServer).GetVideoNumByAuthorId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/video.video/getVideoNumByAuthorId",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VideoServer).GetVideoNumByAuthorId(ctx, req.(*AuthorIdReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Video_ServiceDesc is the grpc.ServiceDesc for Video service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -98,6 +130,10 @@ var Video_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "getVideoByVideoId",
 			Handler:    _Video_GetVideoByVideoId_Handler,
+		},
+		{
+			MethodName: "getVideoNumByAuthorId",
+			Handler:    _Video_GetVideoNumByAuthorId_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
