@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
-	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
-	"github.com/ev1lQuark/tiktok/service/comment/api/internal/types"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
@@ -135,8 +133,6 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		}
 		commentList = append(commentList, comment)
 	}
-
-	fmt.Println(commentList)
 	resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "获取评论列表成功", CommentList: commentList}
 	return resp, nil
 }

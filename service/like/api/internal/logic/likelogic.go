@@ -6,7 +6,9 @@ import (
 	"github.com/ev1lQuark/tiktok/service/Like/model"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/types"
+	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
 	"github.com/zeromicro/go-zero/core/logx"
+	"golang.org/x/sync/errgroup"
 	"strconv"
 )
 
@@ -33,20 +35,30 @@ func NewLikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LikeLogic {
 */
 
 func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err error) {
-	// todo: add your logic here and delete this line
+
 	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
 	userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	logx.Info("userId: %v", userId)
 	likeQuery := l.svcCtx.Query.Like
-	//actionType, err := strconv.ParseInt(req.ActionType, 10, 32)
+	var VideoInfoReply *video.VideoInfoReply
+	var eg errgroup.Group
+	//获取Video具体信息
+	videoIdList := make([]int64, 0, 1)
+	videoIdList = append(videoIdList, videoId)
+	eg.Go(func() error {
+		var err error
+		VideoInfoReply, err = l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{
+			VideoId: videoIdList,
+		})
+		return err
+	})
 	//点赞
 	if req.ActionType == "1" {
 		like := &model.Like{
-			UserID:  userId,
-			VideoID: videoId,
-			Cancel:  0,
-			// todo:通过video rpc:由videoid获取authorid
-			//AuthorID:
+			UserID:   userId,
+			VideoID:  videoId,
+			Cancel:   0,
+			AuthorID: VideoInfoReply.AuthorId[0],
 		}
 		err := likeQuery.WithContext(context.TODO()).Create(like)
 		if err != nil {
