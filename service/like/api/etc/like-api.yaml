@@ -9,3 +9,18 @@ CacheRedis:
 Auth:
   AccessSecret: "tiktok89757"
   AccessExpire: 7200
+UserRpc:
+  Etcd:
+    Hosts:
+      - 192.168.0.210:2379
+    Key: user.rpc
+CommentRpc:
+  Etcd:
+    Hosts:
+      - 192.168.0.210:2379
+    Key: comment.rpc
+VideoRpc:
+  Etcd:
+    Hosts:
+      - 192.168.0.210:2379
+    Key: video.rpc
