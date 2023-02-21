@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+
 	"github.com/ev1lQuark/tiktok/service/like/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 
@@ -30,7 +31,7 @@ func (l *GetFavoriteCountByVideoIdLogic) GetFavoriteCountByVideoId(in *like.GetF
 
 	numList := make([]int64, 0, len(in.VideoId))
 	for _, videoId := range in.VideoId {
-		num, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(videoId)).Count()
+		num, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(videoId)).Where(likeQuery.Cancel.Eq(0)).Count()
 		if err != nil {
 			return nil, err
 		}
