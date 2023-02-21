@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
@@ -10,9 +11,10 @@ import (
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
 
+	"strconv"
+
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/sync/errgroup"
-	"strconv"
 )
 
 type GetCommentListLogic struct {
@@ -32,7 +34,6 @@ func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 // 通过videoID查找所有评论
 func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (resp *types.GetCommentListResponse, err error) {
 	// Parse jwt token
-
 	_, err = jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	if err != nil {
 		logx.Errorf("jwt 认证失败%w", err)
@@ -42,6 +43,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		}
 		return resp, nil
 	}
+
 	// 校验参数
 	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
 	if err != nil {
@@ -50,7 +52,6 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		return resp, nil
 	}
 
-	//
 	commentQuery := l.svcCtx.Query.Comment
 
 	// 查找数据库，获取了comment表的内容,需要对result进行处理
@@ -60,15 +61,10 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
 		return resp, nil
 	}
-	//
 	authorIds := make([]int64, 0, len(tableComments))
-	videoIds := make([]int64, 0, len(tableComments))
-
 	for _, value := range tableComments {
 		authorIds = append(authorIds, value.UserID)
-		videoIds = append(videoIds, value.VideoID)
 	}
-	//
 
 	var eg errgroup.Group
 
@@ -82,7 +78,6 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 
 	// 根据userId获取本账号获赞总数
 	var totalFavoriteNumList *like.GetTotalFavoriteNumReply
-
 	eg.Go(func() error {
 		var err error
 		totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetTotalFavoriteNum(l.ctx, &like.GetTotalFavoriteNumReq{UserId: authorIds})
@@ -111,6 +106,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询评论列表失败"}
 		return resp, nil
 	}
+
 	commentList := make([]types.CommentList, 0, len(tableComments))
 	for index, value := range tableComments {
 		//对每个评论进行整理
@@ -124,7 +120,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 				IsFollow:        false,
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
-				Signature:       "愛抖音，爱生活",
+				Signature:       "爱抖音，爱生活",
 				TotalFavorited:  strconv.Itoa(int(totalFavoriteNumList.Count[index])),
 				WorkCount:       int(workCount.VideoNum[index]),
 				FavoriteCount:   int(userFavoriteCountList.Count[index]),
