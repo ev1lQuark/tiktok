@@ -43,8 +43,8 @@ func (l *GetVideoByVideoIdLogic) GetVideoByVideoId(in *video.VideoIdReq) (*video
 			video = append(video, &model.Video{})
 		}
 		authorIdList = append(authorIdList, video[0].AuthorID)
-		playUrlList = append(playUrlList, video[0].PlayURL)
-		coverUrlList = append(coverUrlList, video[0].CoverURL)
+		playUrlList = append(playUrlList, l.svcCtx.Config.Minio.Endpoint+"/"+video[0].PlayURL)
+		coverUrlList = append(coverUrlList, l.svcCtx.Config.Minio.Endpoint+"/"+video[0].CoverURL)
 		publishTimeList = append(publishTimeList, video[0].PublishTime.Format("2006-01-02 15:04:05"))
 		tileList = append(tileList, video[0].Title)
 	}

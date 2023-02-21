@@ -7,4 +7,11 @@ type Config struct {
 	Mysql struct {
 		DataSource string
 	}
+	Minio struct {
+		Endpoint    string
+		VideoBucket string
+		ImageBucket string
+		AccessKey   string
+		SecretKey   string
+	}
 }
