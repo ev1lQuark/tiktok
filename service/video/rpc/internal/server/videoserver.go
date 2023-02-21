@@ -27,7 +27,9 @@ func (s *VideoServer) GetVideoByVideoId(ctx context.Context, in *video.VideoIdRe
 	return l.GetVideoByVideoId(in)
 }
 
+
 func (s *VideoServer) GetVideoNumByAuthorId(ctx context.Context, in *video.AuthorIdReq) (*video.VideoNumReply, error) {
 	l := logic.NewGetVideoNumByAuthorIdLogic(ctx, s.svcCtx)
 	return l.GetVideoNumByAuthorId(in)
 }
+

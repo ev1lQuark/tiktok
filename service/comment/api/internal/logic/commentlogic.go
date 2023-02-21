@@ -50,6 +50,7 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 		return resp, nil
 	}
 	commentId, err := strconv.ParseInt(req.CommentId, 10, 64)
+
 	if err != nil {
 		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
@@ -62,7 +63,6 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "rpc调用失败" + err.Error()}
 		return resp, nil
 	}
-
 	if videoInfo.AuthorId[0] == 0 {
 		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "视频不存在"}
 		return resp, nil

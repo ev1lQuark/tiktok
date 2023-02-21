@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
@@ -9,6 +10,10 @@ import (
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
+
+	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
+	"github.com/ev1lQuark/tiktok/service/comment/api/internal/types"
+
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/sync/errgroup"
 	"strconv"
@@ -31,6 +36,7 @@ func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 // 通过videoID查找所有评论
 func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (resp *types.GetCommentListResponse, err error) {
 	// Parse jwt token
+
 	_, err = jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	if err != nil {
 		logx.Error(err)
@@ -134,6 +140,8 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		}
 		commentList = append(commentList, comment)
 	}
+
+	
 
 	resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "获取评论列表成功", CommentList: commentList}
 	return resp, nil
