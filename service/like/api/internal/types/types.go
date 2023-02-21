@@ -2,7 +2,7 @@
 package types
 
 type LikeRequest struct {
-	Token      string `form:"token":"token"`
+	Token      string `form:"token"`
 	VideoId    string `form:"video_id"`
 	ActionType string `form:"action_type"`
 }
