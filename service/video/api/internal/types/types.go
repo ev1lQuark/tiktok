@@ -2,8 +2,8 @@
 package types
 
 type FeedReq struct {
-	LatestTime string `form:"latest_time"`
-	Token      string `form:"token"`
+	LatestTime string `form:"latest_time,optional,default=0"`
+	Token      string `form:"token,optional"`
 }
 
 type FeedReply struct {

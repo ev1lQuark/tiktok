@@ -72,7 +72,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	var userNameList *user.NameListReply
 	eg.Go(func() error {
 		var err error
-		userNameList, err = l.svcCtx.UserRpc.GetNames(l.ctx, &user.IdListReq{IdList: authorIds})
+		userNameList, err = l.svcCtx.UserRpc.GetNames(context.TODO(), &user.IdListReq{IdList: authorIds})
 		return err
 	})
 
@@ -80,7 +80,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	var totalFavoriteNumList *like.GetTotalFavoriteNumReply
 	eg.Go(func() error {
 		var err error
-		totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetTotalFavoriteNum(l.ctx, &like.GetTotalFavoriteNumReq{UserId: authorIds})
+		totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetTotalFavoriteNum(context.TODO(), &like.GetTotalFavoriteNumReq{UserId: authorIds})
 		return err
 	})
 
@@ -88,7 +88,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	var userFavoriteCountList *like.GetFavoriteCountByUserIdReply
 	eg.Go(func() error {
 		var err error
-		userFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserId(l.ctx, &like.GetFavoriteCountByUserIdReq{UserId: authorIds})
+		userFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserId(context.TODO(), &like.GetFavoriteCountByUserIdReq{UserId: authorIds})
 		return err
 	})
 
@@ -96,7 +96,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	var workCount *video.VideoNumReply
 	eg.Go(func() error {
 		var err error
-		workCount, err = l.svcCtx.VideoRpc.GetVideoNumByAuthorId(l.ctx, &video.AuthorIdReq{AuthorId: authorIds})
+		workCount, err = l.svcCtx.VideoRpc.GetVideoNumByAuthorId(context.TODO(), &video.AuthorIdReq{AuthorId: authorIds})
 		return err
 	})
 
@@ -126,10 +126,10 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 				FavoriteCount:   int(userFavoriteCountList.Count[index]),
 			},
 			Content:    value.CommentText,
-			CreateDate: value.CreatDate.String(),
+			CreateDate: value.CreatDate.Format("01-02"),
 		}
 		commentList = append(commentList, comment)
 	}
-	resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "获取评论列表成功", CommentList: commentList}
+	resp = &types.GetCommentListResponse{StatusCode: res.SuccessCode, StatusMsg: "获取评论列表成功", CommentList: commentList}
 	return resp, nil
 }

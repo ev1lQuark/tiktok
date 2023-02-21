@@ -8,7 +8,6 @@ import (
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/types"
-	"github.com/ev1lQuark/tiktok/service/like/model"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -58,7 +57,6 @@ func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err 
 	likeQuery := l.svcCtx.Query.Like
 
 	//获取Video具体信息
-
 	VideoInfoReply, err := l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{VideoId: []int64{videoId}})
 
 	if err != nil {
@@ -73,54 +71,24 @@ func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err 
 	}
 
 	//点赞
-	if req.ActionType == "1" {
-		like := &model.Like{
-			UserID:   userId,
-			VideoID:  videoId,
-			Cancel:   0,
-			AuthorID: VideoInfoReply.AuthorId[0],
-		}
-		existLileNum, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Count()
-		if err != nil {
-			logx.Errorf("查询数据库失败%w", err)
-			resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞失败"}
-			return resp, nil
-		}
-		if existLileNum == 0 {
-			err := likeQuery.WithContext(context.TODO()).Create(like)
-			if err != nil {
-				logx.Errorf("点赞失败%w", err)
-				resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞失败"}
-				return resp, nil
-			}
-		} else if existLileNum == 1 {
-			_, err = likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Update(likeQuery.Cancel, 0)
-			if err != nil {
-				logx.Errorf("点赞失败%w", err)
-				resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞失败"}
-				return resp, nil
-			}
-		} else {
-			logx.Errorf("同一用户对一个视频不能存在多个点赞记录")
-			resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞非法"}
-			return resp, nil
-		}
-		resp = &types.LikeResponse{StatusCode: res.SuccessCode, StatusMsg: "点赞成功"}
-
-		//取消点赞  通过userid和videoid
-	} else if req.ActionType == "2" {
-		info, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Update(likeQuery.Cancel, 1)
-		if info.RowsAffected != 1 {
-			logx.Errorf("取消点赞失败%w", err)
-			resp = &types.LikeResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: "取消点赞失败"}
-			return resp, nil
-		}
-		if err != nil {
-			logx.Errorf("取消点赞失败%w", err)
-			resp = &types.LikeResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: "取消点赞失败"}
-			return resp, nil
-		}
-		resp = &types.LikeResponse{StatusCode: res.SuccessCode, StatusMsg: "取消点赞成功"}
+	like, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).FirstOrCreate()
+	if err != nil {
+		logx.Errorf("查询数据库失败%w", err)
+		resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞失败"}
+		return resp, nil
 	}
-	return resp, nil
+	var cancel int32
+	if req.ActionType == "1" {
+		cancel = 0 // 点赞
+	} else if req.ActionType == "2" {
+		cancel = 1 // 取消点赞
+	}
+
+	_, err = likeQuery.WithContext(context.TODO()).Where(likeQuery.ID.Eq(like.ID)).UpdateSimple(likeQuery.Cancel.Value(cancel), likeQuery.AuthorID.Value(VideoInfoReply.AuthorId[0]))
+	if err != nil {
+		logx.Error(err)
+		return &types.LikeResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: "操作失败"}, nil
+	}
+
+	return &types.LikeResponse{StatusCode: res.SuccessCode, StatusMsg: "操作成功"}, nil
 }

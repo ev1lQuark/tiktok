@@ -54,9 +54,8 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 
 	likeQuery := l.svcCtx.Query.Like
 
-	//.Select(commentQuery.UserID, commentQuery.CommentText)
-	//查找数据库，获取了comment表的内容,需要对result进行处理
-	result, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Find()
+	//查找数据库，获取了like表的内容,需要对result进行处理
+	result, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.Cancel.Eq(0)).Find()
 	if err != nil {
 		logx.Errorf("查询数据库错误%w", err)
 		resp = &types.LikeListResponse{
@@ -119,7 +118,7 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	}
 
 	// 通过authorId获取作者的视频喜欢数
-	authorFavoriteCountList := make([]int64, 0, len(result))
+	authorFavoriteCountList := make([]int64, 0)
 	for i := range result {
 		authorFavoriteCount, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(result[i].UserID)).Where(likeQuery.Cancel.Eq(0)).Count()
 		if err != nil {
@@ -130,12 +129,12 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		authorFavoriteCountList = append(authorFavoriteCountList, authorFavoriteCount)
 	}
 	// 通过authorId获取作者视频被喜欢数
-	authorIsFavoriteCountList := make([]int64, 0, len(result))
+	authorIsFavoriteCountList := make([]int64, 0)
 	for i := range result {
 		authorIsFavoriteCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.AuthorID.Eq(result[i].UserID)).Where(likeQuery.Cancel.Eq(0)).Count()
 		if err != nil {
 			logx.Errorf("数据库查询失败%w", err)
-			resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.BadRequestCode), StatusMsg: "查询喜欢列表失败"}
+			resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.InternalServerErrorCode), StatusMsg: "查询喜欢列表失败"}
 			return resp, nil
 		}
 		authorIsFavoriteCountList = append(authorFavoriteCountList, authorIsFavoriteCount)

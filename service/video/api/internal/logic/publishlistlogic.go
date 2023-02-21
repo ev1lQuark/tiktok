@@ -3,6 +3,11 @@ package logic
 import (
 	"context"
 	"fmt"
+	"log"
+	"path"
+	"strconv"
+
+	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/types/comment"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
@@ -10,8 +15,6 @@ import (
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/types"
 	"golang.org/x/sync/errgroup"
-	"log"
-	"strconv"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -32,14 +35,13 @@ func NewPublishListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Publi
 
 func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.PublishListReply, err error) {
 	// 登录校验
-	//_, err = jwt.ParseUserIdFromJwtToken(l.svcCtx.Config.Auth.AccessSecret, req.Token)
-	//if err != nil {
-	//	resp = &types.PublishListReply{
-	//		StatusCode: res.AuthFailedCode,
-	//		StatusMsg:  "jwt 认证失败",
-	//	}
-	//	return resp, nil
-	//}
+	if ok := jwt.Verify(l.svcCtx.Config.Auth.AccessSecret, req.Token); !ok {
+		resp = &types.PublishListReply{
+			StatusCode: res.AuthFailedCode,
+			StatusMsg:  "jwt 认证失败",
+		}
+		return resp, nil
+	}
 	// 参数校验
 	if len(req.UserID) == 0 {
 		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
@@ -161,8 +163,8 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 				WorkCount:       workCount[index],
 				FavoriteCount:   int(userFavoriteCountList.Count[index]),
 			},
-			PlayURL:       l.svcCtx.Config.Minio.Endpoint + "/" + value.PlayURL,
-			CoverURL:      l.svcCtx.Config.Minio.Endpoint + "/" + value.CoverURL,
+			PlayURL:       "http://" + path.Join(l.svcCtx.Config.Minio.Endpoint, value.PlayURL),
+			CoverURL:      "http://" + path.Join(l.svcCtx.Config.Minio.Endpoint, value.CoverURL),
 			FavoriteCount: int(videoFavoriteCountList.Count[index]),
 			CommentCount:  int(videoCommentCountList.Count[index]),
 			IsFavorite:    isFavoriteList.IsFavorite[index],

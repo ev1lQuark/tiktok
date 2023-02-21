@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+
 	"github.com/ev1lQuark/tiktok/service/like/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 
@@ -29,7 +30,7 @@ func (l *IsFavoriteLogic) IsFavorite(in *like.IsFavoriteReq) (*like.IsFavoriteRe
 	likeQuery := l.svcCtx.Query.Like
 	isList := make([]bool, 0, len(in.VideoId))
 	for index, _ := range in.UserId {
-		count, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(in.VideoId[index])).Where(likeQuery.UserID.Eq(in.UserId[index])).Where(likeQuery.Cancel.Eq(1)).Count()
+		count, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(in.VideoId[index])).Where(likeQuery.UserID.Eq(in.UserId[index])).Where(likeQuery.Cancel.Eq(0)).Count()
 		if err != nil {
 			return nil, err
 		}
