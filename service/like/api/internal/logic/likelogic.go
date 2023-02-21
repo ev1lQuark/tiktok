@@ -2,6 +2,8 @@ package logic
 
 import (
 	"context"
+	"strconv"
+
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/svc"
@@ -9,7 +11,6 @@ import (
 	"github.com/ev1lQuark/tiktok/service/like/model"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
 	"github.com/zeromicro/go-zero/core/logx"
-	"strconv"
 )
 
 type LikeLogic struct {
@@ -108,10 +109,15 @@ func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err 
 
 		//取消点赞  通过userid和videoid
 	} else if req.ActionType == "2" {
-		_, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Update(likeQuery.Cancel, 1)
+		info, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Update(likeQuery.Cancel, 1)
+		if info.RowsAffected != 1 {
+			logx.Errorf("取消点赞失败%w", err)
+			resp = &types.LikeResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: "取消点赞失败"}
+			return resp, nil
+		}
 		if err != nil {
 			logx.Errorf("取消点赞失败%w", err)
-			resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "取消点赞失败"}
+			resp = &types.LikeResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: "取消点赞失败"}
 			return resp, nil
 		}
 		resp = &types.LikeResponse{StatusCode: res.SuccessCode, StatusMsg: "取消点赞成功"}
