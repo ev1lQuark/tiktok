@@ -106,27 +106,30 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		PublishTime: publishTimeList,
 		Title:       tileList,
 	*/
-	var videoReply *video.VideoInfoReply
-	//获取PlayURL
+	var VideoInfoReply *video.VideoInfoReply
+	//获取Video具体信息
 	eg.Go(func() error {
 		var err error
-		videoReply, err = l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{
+		VideoInfoReply, err = l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{
 			VideoId: videoId,
 		})
 		return err
 	})
+
 	// 获取workCount
-	workCount := make([]int, 0, len(result))
-	for index := 0; index < len(result); index++ {
-		count, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.AuthorID.Eq(authorIds[index])).Count()
-		if err != nil {
-			msg := fmt.Sprintf("查询视频失败：%v", err)
-			logx.Error(msg)
-			resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
-			return resp, nil
-		}
-		workCount = append(workCount, int(count))
+	workCount := make([]int64, 0, len(result))
+	var videoNumReply *video.VideoNumReply
+	eg.Go(func() error {
+		var err error
+		videoNumReply, err = l.svcCtx.VideoRpc.GetVideoNumByAuthorId(l.ctx, &video.AuthorIdReq{
+			AuthorId: authorIds,
+		})
+		return err
+	})
+	for _, value := range videoNumReply.VideoNum {
+		workCount = append(workCount, value)
 	}
+
 	//CoverURL，
 	//title
 
@@ -147,6 +150,18 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		return resp, nil
 	}
 
+	//通过authorId获取作者的视频喜欢数
+	authorFavoriteCountList := make([]int64, 0, len(result))
+	for i := range result {
+		authorFavoriteCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(result[i].UserID)).Count()
+		authorFavoriteCountList = append(authorFavoriteCountList, authorFavoriteCount)
+	}
+	//通过authorId获取作者视频被喜欢数
+	authorisFavoritedCountList := make([]int64, 0, len(result))
+	for i := range result {
+		authorisFFavoritedCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.AuthorID.Eq(result[i].UserID)).Count()
+		authorisFavoritedCountList = append(authorFavoriteCountList, authorisFFavoritedCount)
+	}
 	for i := range result {
 		//通过videoId获取当前视频受喜欢次数
 		favoriteCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(result[i].VideoID)).Count()
@@ -161,8 +176,8 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		}
 
 		//对每个video进行整理,
-		video := types.VideoList{
-			ID: result[i].ID,
+		videoSingle := types.VideoList{
+			ID: videoId[i],
 			Author: types.Author{
 				ID:              authorIds[i],
 				Name:            userNameList.NameList[i],
@@ -172,31 +187,20 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				Signature:       "愛抖音，爱生活",
-				TotalFavorited:  strconv.Itoa(int(totalFavoriteNumList.Count[index])),
-				WorkCount:       workCount[index],
-				FavoriteCount:   int(userFavoriteCountList.Count[index]),
+				TotalFavorited:  strconv.FormatInt(authorisFavoritedCountList[i], 10),
+				WorkCount:       workCount[i],
+				FavoriteCount:   authorFavoriteCountList[i],
 			},
-			PlayURL:       l.svcCtx.Config.Minio.Endpoint + "/" + value.PlayURL,
-			CoverURL:      l.svcCtx.Config.Minio.Endpoint + "/" + value.CoverURL,
-			FavoriteCount: int(videoFavoriteCountList.Count[index]),
-			CommentCount:  int(videoCommentCountList.Count[index]),
-			IsFavorite:    isFavoriteList.IsFavorite[index],
-			Title:         value.Title,
-			//user还没写
-			//Author:,
-			//video-rpc
-			//PlayURL:,
-			//CoverURL :  ,
+			PlayURL:       VideoInfoReply.PlayUrl[i],
+			CoverURL:      VideoInfoReply.CoverUrl[i],
 			FavoriteCount: favoriteCount,
-			//comment-rpc
-			CommentCount: commentReply.Count[i],
-			IsFavorite:   isF,
-			//Title      :   ,
-
+			CommentCount:  commentReply.Count[i],
+			IsFavorite:    isF,
+			Title:         VideoInfoReply.Title[i],
 		}
-		videoList = append(videoList, video)
+		videoList = append(videoList, videoSingle)
 	}
-	resp.VideoList = videoList
 
+	resp = &types.LikeListResponse{StatusCode: string(res.SuccessCode), StatusMsg: "成功", VideoList: videoList}
 	return resp, nil
 }
