@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // 生成jwt
@@ -44,6 +45,7 @@ func parseClaims(secretKey string, tokenString string) (jwt.MapClaims, error) {
 // 检查jwt合法性
 func Verify(secretKey string, tokenString string) bool {
 	if disable, ok := os.LookupEnv("JWT_DISABLE"); ok && disable == "true" {
+		logx.Info("jwt disabled")
 		return true
 	}
 	claims, err := parseClaims(secretKey, tokenString)
@@ -56,6 +58,7 @@ func Verify(secretKey string, tokenString string) bool {
 // 检查jwt合法性并返回userId
 func GetUserId(secretKey string, tokenString string) (int64, error) {
 	if disable, ok := os.LookupEnv("JWT_DISABLE"); ok && disable == "true" {
+		logx.Info("jwt disabled")
 		return 666666, nil
 	}
 	claims, err := parseClaims(secretKey, tokenString)
