@@ -32,12 +32,12 @@ func NewCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CommentLo
 	}
 }
 
-func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCommentResponse, err error) {
+func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentResponse, err error) {
 	// Parse jwt token
 	userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	if err != nil {
 		logx.Errorf("jwt 认证失败%w", err)
-		resp = &types.GetCommentResponse{
+		resp = &types.CommentResponse{
 			StatusCode: res.AuthFailedCode,
 			StatusMsg:  "jwt 认证失败",
 		}
@@ -48,13 +48,13 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
 	if err != nil {
 		logx.Errorf("参数错误%w", err)
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
+		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
 	actionType, err := strconv.ParseInt(req.ActionType, 10, 64)
 	if err != nil || (actionType != int64(1) && actionType != int64(2)) {
 		logx.Errorf("参数错误%w", err)
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
+		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
 
@@ -63,12 +63,12 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 
 	if err != nil {
 		logx.Errorf("Rpc调用失败%w", err)
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
+		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
 	if videoInfo.AuthorId[0] == 0 {
 		logx.Errorf("视频不存在")
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "视频不存在"}
+		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "视频不存在"}
 		return resp, nil
 	}
 
@@ -85,7 +85,7 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 		err = commentQuery.WithContext(context.TODO()).Create(comment)
 		if err != nil {
 			logx.Errorf("发布评论失败%w", err)
-			resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
+			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
 			return resp, nil
 		}
 
@@ -127,7 +127,7 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 		//错误判断
 		if err := eg.Wait(); err != nil {
 			logx.Errorf("Rpc调用失败%w", err)
-			resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "获取评论详细信息失败"}
+			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "获取评论详细信息失败"}
 			return resp, nil
 		}
 
@@ -149,30 +149,30 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 			Content:    comment.CommentText,
 			CreateDate: comment.CreatDate.String(),
 		}
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论成功", Comment: commentInfo}
+		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论成功", Comment: commentInfo}
 	} else if actionType == 2 {
 		// 参数校验
 		commentId, err := strconv.ParseInt(req.CommentId, 10, 64)
 		if err != nil {
 			msg := fmt.Sprintf("参数错误：%s", err.Error())
 			logx.Errorf(msg)
-			return &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
+			return &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
 		}
 
 		info, err := commentQuery.WithContext(context.TODO()).Where(commentQuery.ID.Eq(commentId)).Update(commentQuery.Cancel, 1)
 		if err != nil {
 			msg := fmt.Sprintf("删除评论失败：%s", err.Error())
 			logx.Error(msg)
-			resp = &types.GetCommentResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: msg}
+			resp = &types.CommentResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: msg}
 			return resp, nil
 		}
 		if info.RowsAffected != 1 {
 			msg := fmt.Sprintf("删除评论失败：%s", "评论不存在")
 			logx.Error(msg)
-			return &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
+			return &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
 		}
 
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论成功"}
+		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论成功"}
 	}
 	return resp, nil
 }
