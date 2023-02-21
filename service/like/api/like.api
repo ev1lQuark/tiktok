@@ -2,9 +2,9 @@ type (
 	//点赞操作
 	//请求参数
 	likeRequest {
-		Token      string `json:"token"`
-		VideoId    string `json:"video_id"`
-		ActionType string `json:"action_type"`
+		Token      string `form:"token":"token"`
+		VideoId    string `form:"video_id"`
+		ActionType string `form:"action_type"`
 	}
 	//返回响应
 	likeResponse {
@@ -15,8 +15,8 @@ type (
 	//喜欢列表操作
 	//请求参数
 	likeListRequest {
-		UserId string `json:"user_id"`
-		Token  string `json:"token"`
+		UserId string `form:"user_id"`
+		Token  string `form:"token"`
 	}
 	//返回响应
 	likeListResponse {

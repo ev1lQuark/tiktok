@@ -2,9 +2,10 @@ package logic
 
 import (
 	"context"
-	"fmt"
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
+	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
+	"github.com/ev1lQuark/tiktok/service/comment/api/internal/types"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
