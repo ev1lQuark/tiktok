@@ -2,12 +2,12 @@ package logic
 
 import (
 	"context"
-	"github.com/ev1lQuark/tiktok/common/res"
-
+	"github.com/ev1lQuark/tiktok/common/jwt"
+	"github.com/ev1lQuark/tiktok/service/Like/model"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/types"
-
 	"github.com/zeromicro/go-zero/core/logx"
+	"strconv"
 )
 
 type LikeLogic struct {
@@ -33,32 +33,30 @@ func NewLikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LikeLogic {
 */
 
 func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err error) {
-
-	// Parse jwt token
-	//userId, err := jwt.ParseUserIdFromJwtToken(l.svcCtx.Config.Auth.AccessSecret, req.Token)
-	//if err != nil {
-	//	resp = &types.PublishActionReply{
-	//		StatusCode: res.AuthFailedCode,
-	//		StatusMsg:  "jwt 认证失败",
-	//	}
-	//	return resp, nil
-	//}
-	//logx.Info("userId: %v", userId)
-
-	// 参数校验
-	if req.ActionType != "1" && req.ActionType != "2" {
-		resp = &types.LikeResponse{
-			StatusCode: res.AuthFailedCode,
-			StatusMsg:  "点赞参数非法",
+	// todo: add your logic here and delete this line
+	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
+	userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
+	logx.Info("userId: %v", userId)
+	likeQuery := l.svcCtx.Query.Like
+	//actionType, err := strconv.ParseInt(req.ActionType, 10, 32)
+	//点赞
+	if req.ActionType == "1" {
+		like := &model.Like{
+			UserID:  userId,
+			VideoID: videoId,
+			Cancel:  0,
+			// todo:通过video rpc:由videoid获取authorid
+			//AuthorID:
 		}
-		return resp, nil
+		err := likeQuery.WithContext(context.TODO()).Create(like)
+		if err != nil {
+			return nil, err
+		} //取消点赞  通过userid和videoid
+	} else if req.ActionType == "2" {
+		_, err = likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Update(likeQuery.Cancel, 1)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if len(req.VideoId) == 0 {
-		resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
-		return resp, nil
-	}
-
-	// 根据videoId和userId查询点赞记录
-
 	return
 }
