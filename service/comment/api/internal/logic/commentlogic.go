@@ -3,12 +3,11 @@ package logic
 import (
 	"context"
 	"github.com/ev1lQuark/tiktok/common/jwt"
-	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/types"
 	"github.com/ev1lQuark/tiktok/service/comment/model"
-	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
 	"github.com/zeromicro/go-zero/core/logx"
+	"gorm.io/gorm"
 	"strconv"
 	"time"
 )
@@ -28,49 +27,24 @@ func NewCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CommentLo
 }
 
 func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCommentResponse, err error) {
-	// Parse jwt token
-	userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
-	if err != nil {
-		resp = &types.GetCommentResponse{
-			StatusCode: res.AuthFailedCode,
-			StatusMsg:  "jwt 认证失败",
-		}
-		return resp, nil
-	}
-
-	// 参数校验
-	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
-	if err != nil {
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
-		return resp, nil
-	}
-	actionType, err := strconv.ParseInt(req.ActionType, 10, 64)
-	if err != nil || (actionType != int64(1) && actionType != int64(2)) {
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
-		return resp, nil
-	}
-	commentId, err := strconv.ParseInt(req.CommentId, 10, 64)
-	if err != nil {
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
-		return resp, nil
-	}
-
-	// 判断videoId是否存在
-	videoInfo, err := l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{VideoId: []int64{videoId}})
-
-	if err != nil {
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "rpc调用失败" + err.Error()}
-		return resp, nil
-	}
-
-	if videoInfo.AuthorId[0] == 0 {
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "视频不存在"}
-		return resp, nil
-	}
-
+	// todo: add your logic here and delete this line
 	//为1，发布评论
+	actionType, err := strconv.ParseInt(req.ActionType, 10, 64)
+	commentId, err := strconv.ParseInt(req.CommentId, 10, 64)
+	userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	if actionType == 1 {
 		commentQuery := l.svcCtx.Query.Comment
+		if err != nil {
+			switch err {
+			case gorm.ErrRecordNotFound:
+				break
+			default:
+				return nil, err
+			}
+		}
+
+		videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
+		logx.Info("userId: %v", userId)
 		comment := &model.Comment{
 			UserID:      userId,
 			VideoID:     videoId,
@@ -80,15 +54,24 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 		}
 		err = commentQuery.WithContext(context.TODO()).Create(comment)
 		if err != nil {
-			resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
-			return resp, nil
+			return nil, err
 		}
 	} else if actionType == 2 {
 		commentQuery := l.svcCtx.Query.Comment
+		userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
+		if err != nil {
+			switch err {
+			case gorm.ErrRecordNotFound:
+				break
+			default:
+				return nil, err
+			}
+		}
+		logx.Info("userId: %v", userId)
+
 		_, err = commentQuery.WithContext(context.TODO()).Where(commentQuery.ID.Eq(commentId)).Update(commentQuery.Cancel, 1)
 		if err != nil {
-			resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论失败"}
-			return resp, nil
+			return nil, err
 		}
 	}
 

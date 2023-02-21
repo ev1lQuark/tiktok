@@ -24,26 +24,26 @@ type LikeListResponse struct {
 }
 
 type VideoList struct {
-	ID            int    `json:"id"`
+	ID            int64  `json:"id"`
 	Author        Author `json:"author"`
 	PlayURL       string `json:"play_url"`
 	CoverURL      string `json:"cover_url"`
-	FavoriteCount int    `json:"favorite_count"`
-	CommentCount  int    `json:"comment_count"`
+	FavoriteCount int64  `json:"favorite_count"`
+	CommentCount  int64  `json:"comment_count"`
 	IsFavorite    bool   `json:"is_favorite"`
 	Title         string `json:"title"`
 }
 
 type Author struct {
-	ID              int    `json:"id"`
+	ID              int64  `json:"id"`
 	Name            string `json:"name"`
-	FollowCount     int    `json:"follow_count"`
-	FollowerCount   int    `json:"follower_count"`
+	FollowCount     int64  `json:"follow_count"`
+	FollowerCount   int64  `json:"follower_count"`
 	IsFollow        bool   `json:"is_follow"`
 	Avatar          string `json:"avatar"`
 	BackgroundImage string `json:"background_image"`
 	Signature       string `json:"signature"`
 	TotalFavorited  string `json:"total_favorited"`
-	WorkCount       int    `json:"work_count"`
-	FavoriteCount   int    `json:"favorite_count"`
+	WorkCount       int64  `json:"work_count"`
+	FavoriteCount   int64  `json:"favorite_count"`
 }
