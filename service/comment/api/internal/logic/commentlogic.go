@@ -2,6 +2,10 @@ package logic
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
@@ -12,8 +16,6 @@ import (
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/sync/errgroup"
-	"strconv"
-	"time"
 )
 
 type CommentLogic struct {
@@ -70,9 +72,9 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 		return resp, nil
 	}
 
+	commentQuery := l.svcCtx.Query.Comment
 	//为1，发布评论
 	if actionType == 1 {
-		commentQuery := l.svcCtx.Query.Comment
 		comment := &model.Comment{
 			UserID:      userId,
 			VideoID:     videoId,
@@ -139,7 +141,7 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 				IsFollow:        false,
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
-				Signature:       "愛抖音，爱生活",
+				Signature:       "爱抖音，爱生活",
 				TotalFavorited:  strconv.Itoa(int(totalFavoriteNumList.Count[0])),
 				WorkCount:       int(workCount.VideoNum[0]),
 				FavoriteCount:   int(userFavoriteCountList.Count[0]),
@@ -152,16 +154,24 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 		// 参数校验
 		commentId, err := strconv.ParseInt(req.CommentId, 10, 64)
 		if err != nil {
-			logx.Errorf("参数错误%w", err)
-			resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
-			return resp, nil
+			msg := fmt.Sprintf("参数错误：%s", err.Error())
+			logx.Errorf(msg)
+			return &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
 		}
-		commentQuery := l.svcCtx.Query.Comment
-		_, err = commentQuery.WithContext(context.TODO()).Where(commentQuery.ID.Eq(commentId)).Update(commentQuery.Cancel, 1)
+
+		info, err := commentQuery.WithContext(context.TODO()).Where(commentQuery.ID.Eq(commentId)).Update(commentQuery.Cancel, 1)
 		if err != nil {
-			resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论失败"}
+			msg := fmt.Sprintf("删除评论失败：%s", err.Error())
+			logx.Error(msg)
+			resp = &types.GetCommentResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: msg}
 			return resp, nil
 		}
+		if info.RowsAffected != 1 {
+			msg := fmt.Sprintf("删除评论失败：%s", "评论不存在")
+			logx.Error(msg)
+			return &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
+		}
+
 		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论成功"}
 	}
 	return resp, nil
