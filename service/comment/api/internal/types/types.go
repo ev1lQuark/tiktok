@@ -2,11 +2,11 @@
 package types
 
 type GetCommentRequest struct {
-	Token       string `json:"token"`
-	VideoId     string `json:"video_id"`
-	ActionType  string `json:"action_type"`
-	CommentText string `json:"comment_text"`
-	CommentId   string `json:"comment_id"`
+	Token       string `form:"token":"token"`
+	VideoId     string `form:"video_id"`
+	ActionType  string `form:"action_type"`
+	CommentText string `form:"comment_text"`
+	CommentId   string `form:"comment_id,optional"`
 }
 
 type GetCommentResponse struct {
@@ -23,8 +23,8 @@ type Comment struct {
 }
 
 type GetCommentListRequest struct {
-	Token   string `json:"token"`
-	VideoId string `json:"video_id"`
+	Token   string `form:"token"`
+	VideoId string `form:"video_id"`
 }
 
 type GetCommentListResponse struct {

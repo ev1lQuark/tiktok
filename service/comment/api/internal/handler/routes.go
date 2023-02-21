@@ -18,7 +18,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: commentHandler(serverCtx),
 			},
 			{
-				Method:  http.MethodPost,
+				Method:  http.MethodGet,
 				Path:    "/comment/list",
 				Handler: getCommentListHandler(serverCtx),
 			},
