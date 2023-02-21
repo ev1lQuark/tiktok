@@ -3,11 +3,13 @@ package logic
 import (
 	"context"
 	"fmt"
+	"path"
+	"strconv"
+	"time"
+
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/types/comment"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
-	"strconv"
-	"time"
 
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
@@ -36,16 +38,18 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
-	lastTime := time.Now()
 	t, err := strconv.ParseInt(req.LatestTime, 10, 64)
 	if err != nil {
 		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
-	lastTime = time.Unix(t, 0)
+	if t > 9999999999 {
+		t = t / 1000
+	}
+	lastTime := time.Unix(t, 0)
 	//查找last date最近视屏
 	videoQuery := l.svcCtx.Query.Video
-	tableVideos, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.PublishTime.Gt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
+	tableVideos, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
 
 	if err != nil {
 		msg := fmt.Sprintf("查询视频失败：%v", err)
@@ -114,7 +118,7 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 
 	//错误判断
 	if err := eg.Wait(); err != nil {
-		msg := fmt.Sprintf("調用Rpc失敗%v", err)
+		msg := fmt.Sprintf("调用Rpc失敗%v", err)
 		logx.Error(msg)
 		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
 		return resp, nil
@@ -134,9 +138,6 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	}
 
 	// 拼接请求
-	fmt.Println(len(userNameList.NameList))
-	fmt.Println(len(totalFavoriteNumList.Count))
-	fmt.Println(len(userFavoriteCountList.Count))
 	videos := make([]types.VideoList, 0, len(tableVideos))
 	for index, value := range tableVideos {
 		videos = append(videos, types.VideoList{
@@ -149,13 +150,13 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 				IsFollow:        false,
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
-				Signature:       "愛抖音，爱生活",
+				Signature:       "爱抖音，爱生活",
 				TotalFavorited:  strconv.Itoa(int(totalFavoriteNumList.Count[index])),
 				WorkCount:       workCount[index],
 				FavoriteCount:   int(userFavoriteCountList.Count[index]),
 			},
-			PlayURL:       l.svcCtx.Config.Minio.Endpoint + "/" + value.PlayURL,
-			CoverURL:      l.svcCtx.Config.Minio.Endpoint + "/" + value.CoverURL,
+			PlayURL:       "http://" + path.Join(l.svcCtx.Config.Minio.Endpoint, value.PlayURL),
+			CoverURL:      "http://" + path.Join(l.svcCtx.Config.Minio.Endpoint, value.CoverURL),
 			FavoriteCount: int(videoFavoriteCountList.Count[index]),
 			CommentCount:  int(videoCommentCountList.Count[index]),
 			IsFavorite:    isFavoriteList.IsFavorite[index],
@@ -163,7 +164,6 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 		})
 	}
 
-	fmt.Println(99999)
 	nextTime := 0
 	if len(videos) != 0 {
 		nextTime = int(tableVideos[len(tableVideos)-1].PublishTime.Unix())
