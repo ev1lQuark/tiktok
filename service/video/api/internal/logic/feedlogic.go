@@ -11,6 +11,7 @@ import (
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 
+	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/types"
@@ -60,35 +61,48 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	authorIds := make([]int64, 0, len(tableVideos))
 	videoIds := make([]int64, 0, len(tableVideos))
 
+	userIds := make([]int64, len(tableVideos), len(tableVideos))
+	if req.Token != "" {
+		userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
+		if err != nil {
+			logx.Error(err)
+			msg := fmt.Sprintf("token 验证失败")
+			return &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
+		}
+		for index := range tableVideos {
+			userIds[index] = userId
+		}
+	}
+
 	for _, value := range tableVideos {
 		authorIds = append(authorIds, value.AuthorID)
 		videoIds = append(videoIds, value.ID)
+		userIds = append(userIds)
 	}
 
 	var eg errgroup.Group
 
-	//根据userId获取userName
-	var userNameList *user.NameListReply
+	//根据Id获取作者Name
+	var authorNameList *user.NameListReply
 	eg.Go(func() error {
 		var err error
-		userNameList, err = l.svcCtx.UserRpc.GetNames(l.ctx, &user.IdListReq{IdList: authorIds})
+		authorNameList, err = l.svcCtx.UserRpc.GetNames(l.ctx, &user.IdListReq{IdList: authorIds})
 		return err
 	})
 
-	// 根据userId获取本账号获赞总数
-	var totalFavoriteNumList *like.GetTotalFavoriteNumReply
-
+	// 根据Id获取作者获赞总数
+	var authorTotalFavoritedList *like.GetTotalFavoriteNumReply
 	eg.Go(func() error {
 		var err error
-		totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetTotalFavoriteNum(l.ctx, &like.GetTotalFavoriteNumReq{UserId: authorIds})
+		authorTotalFavoritedList, err = l.svcCtx.LikeRpc.GetTotalFavoriteNum(l.ctx, &like.GetTotalFavoriteNumReq{UserId: authorIds})
 		return err
 	})
 
-	// 根据userId获取本账号喜欢（点赞）总数
-	var userFavoriteCountList *like.GetFavoriteCountByUserIdReply
+	// 根据Id获取作者喜欢（点赞）总数
+	var authorFavoriteCountList *like.GetFavoriteCountByUserIdReply
 	eg.Go(func() error {
 		var err error
-		userFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserId(l.ctx, &like.GetFavoriteCountByUserIdReq{UserId: authorIds})
+		authorFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserId(l.ctx, &like.GetFavoriteCountByUserIdReq{UserId: authorIds})
 		return err
 	})
 
@@ -112,7 +126,7 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	var isFavoriteList = &like.IsFavoriteReply{}
 	eg.Go(func() error {
 		var err error
-		isFavoriteList, err = l.svcCtx.LikeRpc.IsFavorite(l.ctx, &like.IsFavoriteReq{VideoId: videoIds, UserId: authorIds})
+		isFavoriteList, err = l.svcCtx.LikeRpc.IsFavorite(l.ctx, &like.IsFavoriteReq{VideoId: videoIds, UserId: userIds})
 		return err
 	})
 
@@ -124,8 +138,8 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 		return resp, nil
 	}
 
-	// 获取workCount
-	workCount := make([]int, 0, len(tableVideos))
+	// 获取authorWorkCountList
+	authorWorkCountList := make([]int, 0, len(tableVideos))
 	for index := 0; index < len(tableVideos); index++ {
 		count, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.AuthorID.Eq(authorIds[index])).Count()
 		if err != nil {
@@ -134,7 +148,7 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 			resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
 			return resp, nil
 		}
-		workCount = append(workCount, int(count))
+		authorWorkCountList = append(authorWorkCountList, int(count))
 	}
 
 	// 拼接请求
@@ -144,16 +158,16 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 			ID: int(value.ID),
 			Author: types.Author{
 				ID:              int(authorIds[index]),
-				Name:            userNameList.NameList[index],
+				Name:            authorNameList.NameList[index],
 				FollowCount:     0,
 				FollowerCount:   0,
 				IsFollow:        false,
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				Signature:       "爱抖音，爱生活",
-				TotalFavorited:  strconv.Itoa(int(totalFavoriteNumList.Count[index])),
-				WorkCount:       workCount[index],
-				FavoriteCount:   int(userFavoriteCountList.Count[index]),
+				TotalFavorited:  strconv.Itoa(int(authorTotalFavoritedList.Count[index])),
+				WorkCount:       authorWorkCountList[index],
+				FavoriteCount:   int(authorFavoriteCountList.Count[index]),
 			},
 			PlayURL:       "http://" + path.Join(l.svcCtx.Config.Minio.Endpoint, value.PlayURL),
 			CoverURL:      "http://" + path.Join(l.svcCtx.Config.Minio.Endpoint, value.CoverURL),

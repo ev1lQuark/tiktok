@@ -25,8 +25,6 @@ func NewIsFavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *IsFavo
 
 // 根据userId和videoId判断是否点赞
 func (l *IsFavoriteLogic) IsFavorite(in *like.IsFavoriteReq) (*like.IsFavoriteReply, error) {
-	// todo: add your logic here and delete this line
-
 	likeQuery := l.svcCtx.Query.Like
 	isList := make([]bool, 0, len(in.VideoId))
 	for index, _ := range in.UserId {
