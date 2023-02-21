@@ -3,12 +3,12 @@ package logic
 import (
 	"context"
 	"github.com/ev1lQuark/tiktok/common/jwt"
-	"github.com/ev1lQuark/tiktok/service/Like/model"
+	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/types"
+	"github.com/ev1lQuark/tiktok/service/like/model"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
 	"github.com/zeromicro/go-zero/core/logx"
-	"golang.org/x/sync/errgroup"
 	"strconv"
 )
 
@@ -35,23 +35,42 @@ func NewLikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LikeLogic {
 */
 
 func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err error) {
-
-	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
+	// jwt
 	userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
-	logx.Info("userId: %v", userId)
+	if err != nil {
+		logx.Errorf("jwt 认证失败%w", err)
+		resp = &types.LikeResponse{
+			StatusCode: res.AuthFailedCode,
+			StatusMsg:  "jwt 认证失败",
+		}
+		return resp, nil
+	}
+
+	// 参数校验
+	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
+	if err != nil || (req.ActionType != "1" && req.ActionType != "2") {
+		logx.Errorf("参数错误%w")
+		resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
+		return resp, nil
+	}
+
 	likeQuery := l.svcCtx.Query.Like
-	var VideoInfoReply *video.VideoInfoReply
-	var eg errgroup.Group
+
 	//获取Video具体信息
-	videoIdList := make([]int64, 0, 1)
-	videoIdList = append(videoIdList, videoId)
-	eg.Go(func() error {
-		var err error
-		VideoInfoReply, err = l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{
-			VideoId: videoIdList,
-		})
-		return err
-	})
+
+	VideoInfoReply, err := l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{VideoId: []int64{videoId}})
+
+	if err != nil {
+		logx.Errorf("Rpc调用失败%w", err)
+		resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
+		return resp, nil
+	}
+	if VideoInfoReply.AuthorId[0] == 0 {
+		logx.Errorf("视频不存在")
+		resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "视频不存在"}
+		return resp, nil
+	}
+
 	//点赞
 	if req.ActionType == "1" {
 		like := &model.Like{
@@ -60,15 +79,42 @@ func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err 
 			Cancel:   0,
 			AuthorID: VideoInfoReply.AuthorId[0],
 		}
-		err := likeQuery.WithContext(context.TODO()).Create(like)
+		existLileNum, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Count()
 		if err != nil {
-			return nil, err
-		} //取消点赞  通过userid和videoid
-	} else if req.ActionType == "2" {
-		_, err = likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Update(likeQuery.Cancel, 1)
-		if err != nil {
-			return nil, err
+			logx.Errorf("查询数据库失败%w", err)
+			resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞失败"}
+			return resp, nil
 		}
+		if existLileNum == 0 {
+			err := likeQuery.WithContext(context.TODO()).Create(like)
+			if err != nil {
+				logx.Errorf("点赞失败%w", err)
+				resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞失败"}
+				return resp, nil
+			}
+		} else if existLileNum == 1 {
+			_, err = likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Update(likeQuery.Cancel, 0)
+			if err != nil {
+				logx.Errorf("点赞失败%w", err)
+				resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞失败"}
+				return resp, nil
+			}
+		} else {
+			logx.Errorf("同一用户对一个视频不能存在多个点赞记录")
+			resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞非法"}
+			return resp, nil
+		}
+		resp = &types.LikeResponse{StatusCode: res.SuccessCode, StatusMsg: "点赞成功"}
+
+		//取消点赞  通过userid和videoid
+	} else if req.ActionType == "2" {
+		_, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).Update(likeQuery.Cancel, 1)
+		if err != nil {
+			logx.Errorf("取消点赞失败%w", err)
+			resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "取消点赞失败"}
+			return resp, nil
+		}
+		resp = &types.LikeResponse{StatusCode: res.SuccessCode, StatusMsg: "取消点赞成功"}
 	}
-	return
+	return resp, nil
 }

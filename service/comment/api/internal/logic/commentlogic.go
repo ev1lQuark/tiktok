@@ -66,7 +66,7 @@ func (l *CommentLogic) Comment(req *types.GetCommentRequest) (resp *types.GetCom
 	}
 	if videoInfo.AuthorId[0] == 0 {
 		logx.Errorf("视频不存在")
-		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
+		resp = &types.GetCommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "视频不存在"}
 		return resp, nil
 	}
 

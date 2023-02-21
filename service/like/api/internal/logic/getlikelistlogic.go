@@ -2,7 +2,6 @@ package logic
 
 import (
 	"context"
-	"fmt"
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/types/comment"
@@ -32,7 +31,7 @@ func NewGetLikeListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetLi
 }
 
 func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.LikeListResponse, err error) {
-	// todo: add your logic here and delete this line
+
 	// Parse jwt token
 	_, err = jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	if err != nil {
@@ -43,7 +42,6 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		return resp, nil
 	}
 
-	//logx.Info("userId: %v", userId)
 	userId, err := strconv.ParseInt(req.UserId, 10, 64)
 	if err != nil {
 		logx.Errorf("参数错误%w", err)
@@ -68,16 +66,6 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		return resp, nil
 	}
 
-	//user= &types.User{
-	//	ID:userId,
-	//	Name :
-	//	FollowCount:
-	//	FollowCount
-	//	IsFollow
-	//}
-
-	//videoList是接口响应返回信息
-	videoList := make([]types.VideoList, len(result))
 	videoId := make([]int64, 0, len(result))
 	authorIds := make([]int64, 0, len(result))
 	for j := range result {
@@ -87,7 +75,6 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 
 	var eg errgroup.Group
 
-	// todo:comment-rpc:
 	// 根据videoId获取每个视频的评论总数
 	var commentReply *comment.GetComentCountByVideoIdReply
 	eg.Go(func() error {
@@ -98,14 +85,6 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		return err
 	})
 
-	// todo:video-rpc
-	/*
-		AuthorId:    authorIdList,
-		PlayUrl:     playUrlList,
-		CoverUrl:    coverUrlList,
-		PublishTime: publishTimeList,
-		Title:       tileList,
-	*/
 	var VideoInfoReply *video.VideoInfoReply
 	//获取Video具体信息
 	eg.Go(func() error {
@@ -117,23 +96,13 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	})
 
 	// 获取workCount
-	workCount := make([]int64, 0, len(result))
-	var videoNumReply *video.VideoNumReply
+	var workCount *video.VideoNumReply
 	eg.Go(func() error {
 		var err error
-		videoNumReply, err = l.svcCtx.VideoRpc.GetVideoNumByAuthorId(l.ctx, &video.AuthorIdReq{
-			AuthorId: authorIds,
-		})
+		workCount, err = l.svcCtx.VideoRpc.GetVideoNumByAuthorId(l.ctx, &video.AuthorIdReq{AuthorId: authorIds})
 		return err
 	})
-	for _, value := range videoNumReply.VideoNum {
-		workCount = append(workCount, value)
-	}
 
-	//CoverURL，
-	//title
-
-	// todo:user-rpc
 	//根据authorId获取userName
 	var userNameList *user.NameListReply
 	eg.Go(func() error {
@@ -142,37 +111,55 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		return err
 	})
 
-	//错误判断
+	// 错误判断
 	if err := eg.Wait(); err != nil {
-		msg := fmt.Sprintf("調用Rpc失敗%v", err)
-		logx.Error(msg)
-		resp = &types.LikeListResponse{StatusCode: string(res.BadRequestCode), StatusMsg: msg}
+		logx.Errorf("調用Rpc失敗%w", err)
+		resp = &types.LikeListResponse{StatusCode: string(res.BadRequestCode), StatusMsg: "查询喜欢列表失败"}
 		return resp, nil
 	}
 
-	//通过authorId获取作者的视频喜欢数
+	// 通过authorId获取作者的视频喜欢数
 	authorFavoriteCountList := make([]int64, 0, len(result))
 	for i := range result {
-		authorFavoriteCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(result[i].UserID)).Count()
+		authorFavoriteCount, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(result[i].UserID)).Where(likeQuery.Cancel.Eq(0)).Count()
+		if err != nil {
+			logx.Errorf("数据库查询失败%w", err)
+			resp = &types.LikeListResponse{StatusCode: string(res.BadRequestCode), StatusMsg: "查询喜欢列表失败"}
+			return resp, nil
+		}
 		authorFavoriteCountList = append(authorFavoriteCountList, authorFavoriteCount)
 	}
-	//通过authorId获取作者视频被喜欢数
-	authorisFavoritedCountList := make([]int64, 0, len(result))
+	// 通过authorId获取作者视频被喜欢数
+	authorIsFavoriteCountList := make([]int64, 0, len(result))
 	for i := range result {
-		authorisFFavoritedCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.AuthorID.Eq(result[i].UserID)).Count()
-		authorisFavoritedCountList = append(authorFavoriteCountList, authorisFFavoritedCount)
+		authorIsFavoriteCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.AuthorID.Eq(result[i].UserID)).Where(likeQuery.Cancel.Eq(0)).Count()
+		if err != nil {
+			logx.Errorf("数据库查询失败%w", err)
+			resp = &types.LikeListResponse{StatusCode: string(res.BadRequestCode), StatusMsg: "查询喜欢列表失败"}
+			return resp, nil
+		}
+		authorIsFavoriteCountList = append(authorFavoriteCountList, authorIsFavoriteCount)
 	}
+
+	videoList := make([]types.VideoList, 0, len(result))
 	for i := range result {
 		//通过videoId获取当前视频受喜欢次数
-		favoriteCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(result[i].VideoID)).Count()
+		favoriteCount, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(result[i].VideoID)).Where(likeQuery.Cancel.Eq(0)).Count()
+		if err != nil {
+			logx.Errorf("数据库查询失败%w", err)
+			resp = &types.LikeListResponse{StatusCode: string(res.BadRequestCode), StatusMsg: "查询喜欢列表失败"}
+			return resp, nil
+		}
 		//通过videoId判断用户是否对其点赞
 		isF := true
-		isCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(result[i].VideoID)).Where(likeQuery.UserID.Eq(result[i].UserID)).Count()
+		isCount, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(result[i].VideoID)).Where(likeQuery.UserID.Eq(result[i].UserID)).Where(likeQuery.Cancel.Eq(0)).Count()
+		if err != nil {
+			logx.Errorf("数据库查询失败%w", err)
+			resp = &types.LikeListResponse{StatusCode: string(res.BadRequestCode), StatusMsg: "查询喜欢列表失败"}
+			return resp, nil
+		}
 		if isCount == 0 {
 			isF = false
-		}
-		if err != nil {
-			return nil, err
 		}
 
 		//对每个video进行整理,
@@ -187,8 +174,8 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				Signature:       "愛抖音，爱生活",
-				TotalFavorited:  strconv.FormatInt(authorisFavoritedCountList[i], 10),
-				WorkCount:       workCount[i],
+				TotalFavorited:  strconv.FormatInt(authorIsFavoriteCountList[i], 10),
+				WorkCount:       workCount.VideoNum[i],
 				FavoriteCount:   authorFavoriteCountList[i],
 			},
 			PlayURL:       VideoInfoReply.PlayUrl[i],
@@ -200,7 +187,6 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		}
 		videoList = append(videoList, videoSingle)
 	}
-
 	resp = &types.LikeListResponse{StatusCode: string(res.SuccessCode), StatusMsg: "成功", VideoList: videoList}
 	return resp, nil
 }

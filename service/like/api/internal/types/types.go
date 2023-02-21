@@ -2,9 +2,9 @@
 package types
 
 type LikeRequest struct {
-	Token      string `json:"token"`
-	VideoId    string `json:"video_id"`
-	ActionType string `json:"action_type"`
+	Token      string `form:"token":"token"`
+	VideoId    string `form:"video_id"`
+	ActionType string `form:"action_type"`
 }
 
 type LikeResponse struct {
@@ -13,8 +13,8 @@ type LikeResponse struct {
 }
 
 type LikeListRequest struct {
-	UserId string `json:"user_id"`
-	Token  string `json:"token"`
+	UserId string `form:"user_id"`
+	Token  string `form:"token"`
 }
 
 type LikeListResponse struct {
