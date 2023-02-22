@@ -55,7 +55,7 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	likeQuery := l.svcCtx.Query.Like
 
 	//查找数据库，获取了like表的内容,需要对result进行处理
-	result, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.Cancel.Eq(0)).Find()
+	result, err := readLike(context.TODO(), l.svcCtx, userId)
 	if err != nil {
 		logx.Errorf("查询数据库错误%w", err)
 		resp = &types.LikeListResponse{

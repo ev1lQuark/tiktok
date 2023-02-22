@@ -54,8 +54,6 @@ func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err 
 		return resp, nil
 	}
 
-	likeQuery := l.svcCtx.Query.Like
-
 	//获取Video具体信息
 	VideoInfoReply, err := l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{VideoId: []int64{videoId}})
 
@@ -71,12 +69,6 @@ func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err 
 	}
 
 	//点赞
-	like, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).FirstOrCreate()
-	if err != nil {
-		logx.Errorf("查询数据库失败%w", err)
-		resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "点赞失败"}
-		return resp, nil
-	}
 	var cancel int32
 	if req.ActionType == "1" {
 		cancel = 0 // 点赞
@@ -84,10 +76,11 @@ func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err 
 		cancel = 1 // 取消点赞
 	}
 
-	_, err = likeQuery.WithContext(context.TODO()).Where(likeQuery.ID.Eq(like.ID)).UpdateSimple(likeQuery.Cancel.Value(cancel), likeQuery.AuthorID.Value(VideoInfoReply.AuthorId[0]))
+	err = writeLike(context.TODO(), l.svcCtx, userId, videoId, VideoInfoReply.AuthorId[0], cancel)
 	if err != nil {
-		logx.Error(err)
-		return &types.LikeResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: "操作失败"}, nil
+		logx.Errorf("写入数据库失败%w", err)
+		resp = &types.LikeResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: err.Error()}
+		return resp, nil
 	}
 
 	return &types.LikeResponse{StatusCode: res.SuccessCode, StatusMsg: "操作成功"}, nil
