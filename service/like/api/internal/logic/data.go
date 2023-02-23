@@ -10,8 +10,13 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+var (
+	keyPattern   = "like:userid:%d"
+	valuePattern = "videoid:%d,authorid:%d"
+)
+
 func readLike(ctx context.Context, svcCtx *svc.ServiceContext, userId int64) ([]*model.Like, error) {
-	key := fmt.Sprintf("like:%d", userId)
+	key := fmt.Sprintf(keyPattern, userId)
 	res, err := svcCtx.Redis.SMembers(context.TODO(), key).Result()
 	if err != nil {
 		// redis error
@@ -30,7 +35,7 @@ func readLike(ctx context.Context, svcCtx *svc.ServiceContext, userId int64) ([]
 		}
 		// write to redis
 		for _, v := range result {
-			value := fmt.Sprintf("%d-%d", v.VideoID, v.AuthorID)
+			value := fmt.Sprintf(valuePattern, v.VideoID, v.AuthorID)
 			if err := svcCtx.Redis.SAdd(context.TODO(), key, value).Err(); err != nil {
 				logx.Errorf("写入redis错误%w", err)
 				return nil, err
@@ -44,7 +49,7 @@ func readLike(ctx context.Context, svcCtx *svc.ServiceContext, userId int64) ([]
 	likeList := make([]*model.Like, 0, len(res))
 	for _, v := range res {
 		like := &model.Like{UserID: userId}
-		_, err := fmt.Sscanf(v, "%d-%d", &like.VideoID, &like.AuthorID)
+		_, err := fmt.Sscanf(v, valuePattern, &like.VideoID, &like.AuthorID)
 		if err != nil {
 			logx.Errorf("redis数据格式错误%w", err)
 			return nil, err
@@ -55,8 +60,8 @@ func readLike(ctx context.Context, svcCtx *svc.ServiceContext, userId int64) ([]
 }
 
 func writeLike(ctx context.Context, svcCtx *svc.ServiceContext, userId, videoId, authorId int64, cancel int32) error {
-	key := fmt.Sprintf("like:%d", userId)
-	value := fmt.Sprintf("%d-%d", videoId, authorId)
+	key := fmt.Sprintf(keyPattern, userId)
+	value := fmt.Sprintf(valuePattern, videoId, authorId)
 
 	// 修改 redis
 	if cancel == 0 {
@@ -76,7 +81,7 @@ func writeLike(ctx context.Context, svcCtx *svc.ServiceContext, userId, videoId,
 	}
 
 	// 修改 mysql
-	body := fmt.Sprintf("like:%d-%d-%d-%d", userId, videoId, authorId, cancel)
+	body := fmt.Sprintf(svc.MsgPattern, userId, videoId, authorId, cancel)
 	msg := &primitive.Message{
 		Topic: svcCtx.Config.RocketMQ.Topic,
 		Body:  []byte(body),
