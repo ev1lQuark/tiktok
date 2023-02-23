@@ -20,6 +20,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var MsgPattern = "userId:%d,videoId:%d,authorId:%d,cancel:%d"
+
 type ServiceContext struct {
 	Config     config.Config
 	Query      *query.Query
@@ -81,7 +83,7 @@ func startMQConsumer(svcCtx *ServiceContext) {
 				logx.Info("receive from MQ")
 				var userId, videoId, authorId int64
 				var cancel int32
-				_, err := fmt.Sscanf(string(msg.Body), "like:%d-%d-%d-%d", &userId, &videoId, &authorId, &cancel)
+				_, err := fmt.Sscanf(string(msg.Body), MsgPattern, &userId, &videoId, &authorId, &cancel)
 				if err != nil {
 					logx.Error(err)
 					return consumer.ConsumeRetryLater, err
