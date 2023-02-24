@@ -31,6 +31,7 @@ func NewGetLikeListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetLi
 	}
 }
 
+// 根据userId获取点赞video列表
 func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.LikeListResponse, err error) {
 	// Parse jwt token
 	_, err = jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
@@ -55,7 +56,7 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	likeQuery := l.svcCtx.Query.Like
 
 	//查找数据库，获取了like表的内容,需要对result进行处理
-	result, err := readLike(context.TODO(), l.svcCtx, userId)
+	result, err := getLikeListByUserId(context.TODO(), l.svcCtx, userId)
 	if err != nil {
 		logx.Errorf("查询数据库错误%w", err)
 		resp = &types.LikeListResponse{

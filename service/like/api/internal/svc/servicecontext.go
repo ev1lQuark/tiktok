@@ -64,8 +64,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 }
 
 func startMQConsumer(svcCtx *ServiceContext) {
-	logx.Info("启动消息Consumer")
-	// 从MQ中读取数据
 	c, err := rocketmq.NewPushConsumer(
 		consumer.WithNameServer([]string{svcCtx.Config.RocketMQ.NameServer}),
 		consumer.WithConsumerModel(consumer.Clustering),
@@ -79,27 +77,25 @@ func startMQConsumer(svcCtx *ServiceContext) {
 		func(ctx context.Context,
 			msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
 			for _, msg := range msgs {
-				// 处理消息
-				logx.Info("receive from MQ")
 				var userId, videoId, authorId int64
 				var cancel int32
 				_, err := fmt.Sscanf(string(msg.Body), MsgPattern, &userId, &videoId, &authorId, &cancel)
 				if err != nil {
 					logx.Error(err)
-					return consumer.ConsumeRetryLater, err
+					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
-				// 修改数据库
+
+				// 写数据库
 				likeQuery := svcCtx.Query.Like
 				like, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).FirstOrCreate()
 				if err != nil {
-					logx.Errorf("查询数据库失败%w", err)
-					return consumer.ConsumeRetryLater, err
+					logx.Errorf("查询数据库失败：%w", err)
+					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
-
 				_, err = likeQuery.WithContext(context.TODO()).Where(likeQuery.ID.Eq(like.ID)).UpdateSimple(likeQuery.Cancel.Value(cancel), likeQuery.AuthorID.Value(authorId))
 				if err != nil {
 					logx.Error(err)
-					return consumer.ConsumeRetryLater, err
+					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
 			}
 			return consumer.ConsumeSuccess, nil

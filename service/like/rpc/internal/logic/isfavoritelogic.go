@@ -24,10 +24,11 @@ func NewIsFavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *IsFavo
 }
 
 // 根据userId和videoId判断是否点赞
+// TODO: 缓存
 func (l *IsFavoriteLogic) IsFavorite(in *like.IsFavoriteReq) (*like.IsFavoriteReply, error) {
 	likeQuery := l.svcCtx.Query.Like
 	isList := make([]bool, 0, len(in.VideoId))
-	for index, _ := range in.UserId {
+	for index := range in.UserId {
 		count, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(in.VideoId[index])).Where(likeQuery.UserID.Eq(in.UserId[index])).Where(likeQuery.Cancel.Eq(0)).Count()
 		if err != nil {
 			return nil, err

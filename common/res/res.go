@@ -5,4 +5,5 @@ const (
 	BadRequestCode        // 1
 	AuthFailedCode
 	InternalServerErrorCode
+	RemoteServiceErrorCode
 )

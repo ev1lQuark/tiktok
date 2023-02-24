@@ -24,8 +24,8 @@ func NewGetTotalFavoriteNumLogic(ctx context.Context, svcCtx *svc.ServiceContext
 }
 
 // 根据userId获取本账号所发视频获赞总数
+// TODO: 缓存
 func (l *GetTotalFavoriteNumLogic) GetTotalFavoriteNum(in *like.GetTotalFavoriteNumReq) (*like.GetTotalFavoriteNumReply, error) {
-	// todo: add your logic here and delete this line
 
 	likeQuery := l.svcCtx.Query.Like
 	numList := make([]int64, 0, len(in.UserId))

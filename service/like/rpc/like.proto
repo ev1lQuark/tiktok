@@ -42,7 +42,7 @@ service like {
   rpc getTotalFavoriteNum(getTotalFavoriteNumReq) returns(getTotalFavoriteNumReply);
   //根据userId获取本账号喜欢（点赞）总数
   rpc getFavoriteCountByUserId(getFavoriteCountByUserIdReq) returns(getFavoriteCountByUserIdReply);
-  //根据videoId获取视屏点赞总数
+  //根据videoId获取视频点赞总数
   rpc getFavoriteCountByVideoId(getFavoriteCountByVideoIdReq) returns(getFavoriteCountByVideoIdReply);
   //根据userId和videoId判断是否点赞
   rpc isFavorite(isFavoriteReq) returns(isFavoriteReply);
