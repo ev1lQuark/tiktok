@@ -70,6 +70,25 @@ func getLikeListByUserId(ctx context.Context, svcCtx *svc.ServiceContext, userId
 }
 
 func setLike(ctx context.Context, svcCtx *svc.ServiceContext, userId, videoId, authorId int64, cancel int32) error {
+	// 写缓存
+	userIdKey := fmt.Sprintf(setting.UserIdKeyPattern, userId)
+	userIdValue := fmt.Sprintf(setting.UserIdValuePattern, videoId, authorId)
+	videoIdKey := fmt.Sprintf(setting.VideoIdKeyPattern, videoId)
+	pipe := svcCtx.Redis.Pipeline()
+	if cancel == 0 {
+		pipe.SRem(ctx, setting.UserIdPenetrationKey, userId) // 移出缓存穿透set
+		pipe.SAdd(ctx, userIdKey, userIdValue)
+		pipe.Incr(ctx, videoIdKey)
+	} else {
+		pipe.SRem(ctx, userIdKey, userIdValue)
+		pipe.Decr(ctx, videoIdKey)
+	}
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		logx.Error(err)
+		return err
+	}
+
 	body := fmt.Sprintf(svc.MsgPattern, userId, videoId, authorId, cancel)
 	msg := &primitive.Message{
 		Topic: svcCtx.Config.RocketMQ.Topic,

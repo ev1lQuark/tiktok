@@ -12,7 +12,6 @@ import (
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/commentclient"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/config"
 	"github.com/ev1lQuark/tiktok/service/like/query"
-	"github.com/ev1lQuark/tiktok/service/like/setting"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/userclient"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/videoclient"
 	"github.com/redis/go-redis/v9"
@@ -83,34 +82,20 @@ func startMQConsumer(svcCtx *ServiceContext) {
 				_, err := fmt.Sscanf(string(msg.Body), MsgPattern, &userId, &videoId, &authorId, &cancel)
 				if err != nil {
 					logx.Error(err)
-					return consumer.ConsumeRetryLater, err
+					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
 
 				// 写数据库
 				likeQuery := svcCtx.Query.Like
 				like, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(userId)).Where(likeQuery.VideoID.Eq(videoId)).FirstOrCreate()
 				if err != nil {
-					logx.Errorf("查询数据库失败%w", err)
-					return consumer.ConsumeRetryLater, err
+					logx.Errorf("查询数据库失败：%w", err)
+					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
 				_, err = likeQuery.WithContext(context.TODO()).Where(likeQuery.ID.Eq(like.ID)).UpdateSimple(likeQuery.Cancel.Value(cancel), likeQuery.AuthorID.Value(authorId))
 				if err != nil {
 					logx.Error(err)
-					return consumer.ConsumeRetryLater, err
-				}
-
-				// 写缓存
-				userIdKey := fmt.Sprintf(setting.UserIdKeyPattern, userId)
-				userIdValue := fmt.Sprintf(setting.UserIdValuePattern, videoId, authorId)
-				videoIdKey := fmt.Sprintf(setting.VideoIdKeyPattern, videoId)
-				rds := svcCtx.Redis
-				if cancel == 0 {
-					rds.SRem(ctx, setting.UserIdPenetrationKey, userId) // 移出缓存穿透set
-					rds.SAdd(ctx, userIdKey, userIdValue)
-					rds.Incr(ctx, videoIdKey)
-				} else {
-					rds.SRem(ctx, userIdKey, userIdValue)
-					rds.Decr(ctx, videoIdKey)
+					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
 			}
 			return consumer.ConsumeSuccess, nil
