@@ -3,6 +3,7 @@ module github.com/ev1lQuark/tiktok
 go 1.19
 
 require (
+	github.com/apache/rocketmq-client-go/v2 v2.1.1
 	github.com/chilts/sid v0.0.0-20190607042430-660e94789ec9
 	github.com/golang-jwt/jwt/v4 v4.4.3
 	github.com/minio/minio-go/v7 v7.0.49
@@ -18,8 +19,17 @@ require (
 
 require (
 	github.com/aws/aws-sdk-go v1.38.20 // indirect
+	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/satori/go.uuid v1.2.0 // indirect
+	github.com/stathat/consistent v1.0.0 // indirect
+	github.com/tidwall/gjson v1.13.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/u2takey/go-utils v0.3.1 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 )
 
 require (
