@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"fmt"
+	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"strconv"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/sync/errgroup"
 )
+
 
 type CommentLogic struct {
 	logx.Logger
@@ -82,12 +84,25 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 			CreatDate:   time.Now(),
 			Cancel:      0,
 		}
+
 		err = commentQuery.WithContext(context.TODO()).Create(comment)
 		if err != nil {
 			logx.Errorf("发布评论失败%w", err)
 			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
 			return resp, nil
 		}
+
+		// 缓存策略
+		// 直接缓存失效
+		_, err = l.svcCtx.Redis.Del(context.TODO(),strconv.FormatInt(videoId, 10)).Result()
+
+
+		if err != nil {
+			logx.Errorf("缓存失效失败%w", err)
+			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
+			return resp, nil
+		}
+
 
 		var eg errgroup.Group
 
@@ -158,20 +173,24 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 			logx.Errorf(msg)
 			return &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
 		}
+		// 缓存策略直接失效
+		l.svcCtx.Redis.Del(context.TODO(),strconv.FormatInt(videoId, 10))
 
-		info, err := commentQuery.WithContext(context.TODO()).Where(commentQuery.ID.Eq(commentId)).Update(commentQuery.Cancel, 1)
-		if err != nil {
-			msg := fmt.Sprintf("删除评论失败：%s", err.Error())
-			logx.Error(msg)
-			resp = &types.CommentResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: msg}
-			return resp, nil
-		}
-		if info.RowsAffected != 1 {
-			msg := fmt.Sprintf("删除评论失败：%s", "评论不存在")
-			logx.Error(msg)
-			return &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
+
+		body := fmt.Sprintf("%d-%d", commentId, videoId)
+		msg := &primitive.Message{
+			Topic: l.svcCtx.Config.RocketMQ.Topic,
+			Body:  []byte(body),
 		}
 
+		// 发送消息到 MQ
+		l.svcCtx.MqProducer.SendAsync(context.TODO(), func(ctx context.Context, result *primitive.SendResult, err error) {
+			if err != nil {
+				logx.Error(err)
+				return
+			}
+		}, msg)
+		logx.Info("send to MQ")
 		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论成功"}
 	}
 	return resp, nil
