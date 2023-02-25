@@ -13,22 +13,22 @@ import (
 )
 
 type (
-	GetFavoriteCountByUserIdReply  = like.GetFavoriteCountByUserIdReply
-	GetFavoriteCountByUserIdReq    = like.GetFavoriteCountByUserIdReq
-	GetFavoriteCountByVideoIdReply = like.GetFavoriteCountByVideoIdReply
-	GetFavoriteCountByVideoIdReq   = like.GetFavoriteCountByVideoIdReq
-	GetTotalFavoriteNumReply       = like.GetTotalFavoriteNumReply
-	GetTotalFavoriteNumReq         = like.GetTotalFavoriteNumReq
-	IsFavoriteReply                = like.IsFavoriteReply
-	IsFavoriteReq                  = like.IsFavoriteReq
+	GetFavoriteCountByAuthorIdsReply = like.GetFavoriteCountByAuthorIdsReply
+	GetFavoriteCountByAuthorIdsReq   = like.GetFavoriteCountByAuthorIdsReq
+	GetFavoriteCountByUserIdsReply   = like.GetFavoriteCountByUserIdsReply
+	GetFavoriteCountByUserIdsReq     = like.GetFavoriteCountByUserIdsReq
+	GetFavoriteCountByVideoIdsReply  = like.GetFavoriteCountByVideoIdsReply
+	GetFavoriteCountByVideoIdsReq    = like.GetFavoriteCountByVideoIdsReq
+	IsFavoriteReply                  = like.IsFavoriteReply
+	IsFavoriteReq                    = like.IsFavoriteReq
 
 	Like interface {
 		// 根据userId获取本账号所发视频获赞总数
-		GetTotalFavoriteNum(ctx context.Context, in *GetTotalFavoriteNumReq, opts ...grpc.CallOption) (*GetTotalFavoriteNumReply, error)
+		GetFavoriteCountByAuthorIds(ctx context.Context, in *GetFavoriteCountByAuthorIdsReq, opts ...grpc.CallOption) (*GetFavoriteCountByAuthorIdsReply, error)
 		// 根据userId获取本账号喜欢（点赞）总数
-		GetFavoriteCountByUserId(ctx context.Context, in *GetFavoriteCountByUserIdReq, opts ...grpc.CallOption) (*GetFavoriteCountByUserIdReply, error)
-		// 根据videoId获取视屏点赞总数
-		GetFavoriteCountByVideoId(ctx context.Context, in *GetFavoriteCountByVideoIdReq, opts ...grpc.CallOption) (*GetFavoriteCountByVideoIdReply, error)
+		GetFavoriteCountByUserIds(ctx context.Context, in *GetFavoriteCountByUserIdsReq, opts ...grpc.CallOption) (*GetFavoriteCountByUserIdsReply, error)
+		// 根据videoId获取视频点赞总数
+		GetFavoriteCountByVideoIds(ctx context.Context, in *GetFavoriteCountByVideoIdsReq, opts ...grpc.CallOption) (*GetFavoriteCountByVideoIdsReply, error)
 		// 根据userId和videoId判断是否点赞
 		IsFavorite(ctx context.Context, in *IsFavoriteReq, opts ...grpc.CallOption) (*IsFavoriteReply, error)
 	}
@@ -45,21 +45,21 @@ func NewLike(cli zrpc.Client) Like {
 }
 
 // 根据userId获取本账号所发视频获赞总数
-func (m *defaultLike) GetTotalFavoriteNum(ctx context.Context, in *GetTotalFavoriteNumReq, opts ...grpc.CallOption) (*GetTotalFavoriteNumReply, error) {
+func (m *defaultLike) GetFavoriteCountByAuthorIds(ctx context.Context, in *GetFavoriteCountByAuthorIdsReq, opts ...grpc.CallOption) (*GetFavoriteCountByAuthorIdsReply, error) {
 	client := like.NewLikeClient(m.cli.Conn())
-	return client.GetTotalFavoriteNum(ctx, in, opts...)
+	return client.GetFavoriteCountByAuthorIds(ctx, in, opts...)
 }
 
 // 根据userId获取本账号喜欢（点赞）总数
-func (m *defaultLike) GetFavoriteCountByUserId(ctx context.Context, in *GetFavoriteCountByUserIdReq, opts ...grpc.CallOption) (*GetFavoriteCountByUserIdReply, error) {
+func (m *defaultLike) GetFavoriteCountByUserIds(ctx context.Context, in *GetFavoriteCountByUserIdsReq, opts ...grpc.CallOption) (*GetFavoriteCountByUserIdsReply, error) {
 	client := like.NewLikeClient(m.cli.Conn())
-	return client.GetFavoriteCountByUserId(ctx, in, opts...)
+	return client.GetFavoriteCountByUserIds(ctx, in, opts...)
 }
 
-// 根据videoId获取视屏点赞总数
-func (m *defaultLike) GetFavoriteCountByVideoId(ctx context.Context, in *GetFavoriteCountByVideoIdReq, opts ...grpc.CallOption) (*GetFavoriteCountByVideoIdReply, error) {
+// 根据videoId获取视频点赞总数
+func (m *defaultLike) GetFavoriteCountByVideoIds(ctx context.Context, in *GetFavoriteCountByVideoIdsReq, opts ...grpc.CallOption) (*GetFavoriteCountByVideoIdsReply, error) {
 	client := like.NewLikeClient(m.cli.Conn())
-	return client.GetFavoriteCountByVideoId(ctx, in, opts...)
+	return client.GetFavoriteCountByVideoIds(ctx, in, opts...)
 }
 
 // 根据userId和videoId判断是否点赞

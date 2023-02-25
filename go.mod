@@ -18,21 +18,11 @@ require (
 
 require (
 	github.com/aws/aws-sdk-go v1.38.20 // indirect
-	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
-	github.com/pkg/errors v0.9.1 // indirect
-	github.com/satori/go.uuid v1.2.0 // indirect
-	github.com/stathat/consistent v1.0.0 // indirect
-	github.com/tidwall/gjson v1.13.0 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/u2takey/go-utils v0.3.1 // indirect
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 )
 
 require (
-	github.com/apache/rocketmq-client-go/v2 v2.1.1
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -75,6 +65,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/redis/go-redis/v9 v9.0.2
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.4.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect

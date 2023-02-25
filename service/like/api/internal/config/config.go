@@ -14,11 +14,6 @@ type Config struct {
 		Addr string
 		DB   int
 	}
-	RocketMQ struct {
-		NameServer string
-		Topic      string
-		Group      string
-	}
 	Auth struct {
 		AccessSecret string
 		AccessExpire int64

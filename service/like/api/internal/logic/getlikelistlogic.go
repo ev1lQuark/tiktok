@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/ev1lQuark/tiktok/common/jwt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/types"
+	"github.com/ev1lQuark/tiktok/service/like/setting"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -34,18 +36,17 @@ func NewGetLikeListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetLi
 // 根据userId获取点赞video列表
 func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.LikeListResponse, err error) {
 	// Parse jwt token
-	_, err = jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
-	if err != nil {
+	if ok := jwt.Verify(l.svcCtx.Config.Auth.AccessSecret, req.Token); !ok {
 		resp = &types.LikeListResponse{
 			StatusCode: strconv.Itoa(res.AuthFailedCode),
 			StatusMsg:  "jwt 认证失败",
 		}
 		return resp, nil
 	}
-
+	// 参数校验
 	userId, err := strconv.ParseInt(req.UserId, 10, 64)
 	if err != nil {
-		logx.Errorf("参数错误%w", err)
+		logx.Errorf("param error: %w", err)
 		resp = &types.LikeListResponse{
 			StatusCode: strconv.Itoa(res.AuthFailedCode),
 			StatusMsg:  "参数错误",
@@ -53,49 +54,60 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		return resp, nil
 	}
 
-	likeQuery := l.svcCtx.Query.Like
-
-	//查找数据库，获取了like表的内容,需要对result进行处理
-	result, err := getLikeListByUserId(context.TODO(), l.svcCtx, userId)
+	// 获取 userId 喜欢视频的 videoIds
+	likeVideoIds, err := l.svcCtx.Redis.SMembers(l.ctx, setting.GetLikeSetUserIdKey(userId)).Result()
 	if err != nil {
-		logx.Errorf("查询数据库错误%w", err)
+		logx.Errorf("redis error: %w", err)
 		resp = &types.LikeListResponse{
-			StatusCode: strconv.Itoa(res.InternalServerErrorCode),
-			StatusMsg:  "查询数据库错误",
+			StatusCode: strconv.Itoa(res.AuthFailedCode),
+			StatusMsg:  "redis 错误",
+		}
+		return resp, err
+	}
+	if len(likeVideoIds) == 0 {
+		resp = &types.LikeListResponse{
+			StatusCode: strconv.Itoa(res.SuccessCode),
+			StatusMsg:  "success",
+			VideoList:  make([]types.VideoList, 0),
 		}
 		return resp, nil
 	}
 
-	videoId := make([]int64, 0, len(result))
-	authorIds := make([]int64, 0, len(result))
-	for j := range result {
-		videoId = append(videoId, result[j].VideoID)
-		authorIds = append(authorIds, result[j].AuthorID)
+	// 格式转换
+	videoIds := make([]int64, 0, len(likeVideoIds))
+	for i := range likeVideoIds {
+		videoId, _ := strconv.ParseInt(likeVideoIds[i], 10, 64)
+		videoIds = append(videoIds, videoId)
 	}
+
+	// 获取视频Infos
+	videosInfoReply, err := l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{
+		VideoId: videoIds,
+	})
+	if err != nil {
+		logx.Errorf("rpc error: %w", err)
+		resp = &types.LikeListResponse{
+			StatusCode: strconv.Itoa(res.RemoteServiceErrorCode),
+			StatusMsg:  err.Error(),
+		}
+		return resp, nil
+	}
+	// 整理出authorIds
+	authorIds := videosInfoReply.AuthorId
 
 	var eg errgroup.Group
 
-	// 根据videoId获取每个视频的评论总数
-	var commentReply *comment.GetComentCountByVideoIdReply
+	// 根据 videoIds 获取 commentCount
+	var commentCountReply *comment.GetComentCountByVideoIdReply
 	eg.Go(func() error {
 		var err error
-		commentReply, err = l.svcCtx.CommentRpc.GetCommentCountByVideoId(l.ctx, &comment.GetComentCountByVideoIdReq{
-			VideoId: videoId,
+		commentCountReply, err = l.svcCtx.CommentRpc.GetCommentCountByVideoId(l.ctx, &comment.GetComentCountByVideoIdReq{
+			VideoId: videoIds,
 		})
 		return err
 	})
 
-	var VideoInfoReply *video.VideoInfoReply
-	//获取Video具体信息
-	eg.Go(func() error {
-		var err error
-		VideoInfoReply, err = l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{
-			VideoId: videoId,
-		})
-		return err
-	})
-
-	// 获取workCount
+	// 根据 authorIds 获取 workCount
 	var workCount *video.VideoNumReply
 	eg.Go(func() error {
 		var err error
@@ -103,90 +115,76 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		return err
 	})
 
-	//根据authorId获取userName
-	var userNameList *user.NameListReply
+	//根据 authorIds 获取 authorNames
+	var authorNamesReply *user.NameListReply
 	eg.Go(func() error {
 		var err error
-		userNameList, err = l.svcCtx.UserRpc.GetNames(l.ctx, &user.IdListReq{IdList: authorIds})
+		authorNamesReply, err = l.svcCtx.UserRpc.GetNames(l.ctx, &user.IdListReq{IdList: authorIds})
 		return err
 	})
 
-	// 错误判断
+	// errgroup 等待所有 rpc 请求完成
 	if err := eg.Wait(); err != nil {
-		logx.Errorf("调用Rpc失败%w", err)
-		resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.InternalServerErrorCode), StatusMsg: "查询喜欢列表失败"}
-		return resp, nil
+		msg := fmt.Sprintf("rpc error: %s", err.Error())
+		logx.Error(msg)
+		resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.InternalServerErrorCode), StatusMsg: msg}
+		return resp, err
 	}
 
-	// 通过authorId获取作者的视频喜欢数
 	authorFavoriteCountList := make([]int64, 0)
-	for i := range result {
-		authorFavoriteCount, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.UserID.Eq(result[i].UserID)).Where(likeQuery.Cancel.Eq(0)).Count()
-		if err != nil {
-			logx.Errorf("数据库查询失败%w", err)
-			resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.InternalServerErrorCode), StatusMsg: "查询喜欢列表失败"}
-			return resp, nil
-		}
-		authorFavoriteCountList = append(authorFavoriteCountList, authorFavoriteCount)
+	authorIsFavoritedCountList := make([]int64, 0)
+	pipe := l.svcCtx.Redis.Pipeline()
+	for _, authorId := range authorIds {
+		res, _ := pipe.HGet(l.ctx, setting.LikeMapUserIdCountKey, strconv.FormatInt(authorId, 10)).Result()
+		count, _ := strconv.ParseInt(res, 10, 64)
+		authorFavoriteCountList = append(authorFavoriteCountList, count)
+		res, _ = pipe.HGet(l.ctx, setting.LikeMapAuthorIdCountKey, strconv.FormatInt(authorId, 10)).Result()
+		count, _ = strconv.ParseInt(res, 10, 64)
+		authorIsFavoritedCountList = append(authorFavoriteCountList, count)
 	}
-	// 通过authorId获取作者视频被喜欢数
-	authorIsFavoriteCountList := make([]int64, 0)
-	for i := range result {
-		authorIsFavoriteCount, _ := likeQuery.WithContext(context.TODO()).Where(likeQuery.AuthorID.Eq(result[i].UserID)).Where(likeQuery.Cancel.Eq(0)).Count()
-		if err != nil {
-			logx.Errorf("数据库查询失败%w", err)
-			resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.InternalServerErrorCode), StatusMsg: "查询喜欢列表失败"}
-			return resp, nil
+	_, err = pipe.Exec(l.ctx)
+	if err != nil {
+		logx.Errorf("redis error: %w", err)
+		resp = &types.LikeListResponse{
+			StatusCode: strconv.Itoa(res.InternalServerErrorCode),
+			StatusMsg:  "redis 错误",
 		}
-		authorIsFavoriteCountList = append(authorFavoriteCountList, authorIsFavoriteCount)
+		return resp, err
 	}
 
-	videoList := make([]types.VideoList, 0, len(result))
-	for i := range result {
+	videoList := make([]types.VideoList, 0, len(videoIds))
+	pipe = l.svcCtx.Redis.Pipeline()
+	for i, videoId := range videoIds {
 		//通过videoId获取当前视频受喜欢次数
-		favoriteCount, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(result[i].VideoID)).Where(likeQuery.Cancel.Eq(0)).Count()
-		if err != nil {
-			logx.Errorf("数据库查询失败%w", err)
-			resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.BadRequestCode), StatusMsg: "查询喜欢列表失败"}
-			return resp, nil
-		}
+		res, _ := pipe.HGet(l.ctx, setting.LikeMapVideoIdCountKey, strconv.FormatInt(videoId, 10)).Result()
+		videoFavoriteCount, _ := strconv.ParseInt(res, 10, 64)
 		//通过videoId判断用户是否对其点赞
-		isF := true
-		isCount, err := likeQuery.WithContext(context.TODO()).Where(likeQuery.VideoID.Eq(result[i].VideoID)).Where(likeQuery.UserID.Eq(result[i].UserID)).Where(likeQuery.Cancel.Eq(0)).Count()
-		if err != nil {
-			logx.Errorf("数据库查询失败%w", err)
-			resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.BadRequestCode), StatusMsg: "查询喜欢列表失败"}
-			return resp, nil
-		}
-		if isCount == 0 {
-			isF = false
-		}
-
+		isF, _ := pipe.SIsMember(l.ctx, setting.GetLikeSetUserIdKey(userId), strconv.FormatInt(videoId, 10)).Result()
 		//对每个video进行整理,
 		videoSingle := types.VideoList{
-			ID: videoId[i],
+			ID: videoId,
 			Author: types.Author{
 				ID:              authorIds[i],
-				Name:            userNameList.NameList[i],
+				Name:            authorNamesReply.NameList[i],
 				FollowCount:     0,
 				FollowerCount:   0,
 				IsFollow:        false,
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				Signature:       "爱抖音，爱生活",
-				TotalFavorited:  strconv.FormatInt(authorIsFavoriteCountList[i], 10),
+				TotalFavorited:  strconv.FormatInt(authorIsFavoritedCountList[i], 10),
 				WorkCount:       workCount.VideoNum[i],
 				FavoriteCount:   authorFavoriteCountList[i],
 			},
-			PlayURL:       VideoInfoReply.PlayUrl[i],
-			CoverURL:      VideoInfoReply.CoverUrl[i],
-			FavoriteCount: favoriteCount,
-			CommentCount:  commentReply.Count[i],
+			PlayURL:       videosInfoReply.PlayUrl[i],
+			CoverURL:      videosInfoReply.CoverUrl[i],
+			FavoriteCount: videoFavoriteCount,
+			CommentCount:  commentCountReply.Count[i],
 			IsFavorite:    isF,
-			Title:         VideoInfoReply.Title[i],
+			Title:         videosInfoReply.Title[i],
 		}
 		videoList = append(videoList, videoSingle)
 	}
-	resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.SuccessCode), StatusMsg: "成功", VideoList: videoList}
+	resp = &types.LikeListResponse{StatusCode: strconv.Itoa(res.SuccessCode), StatusMsg: "", VideoList: videoList}
 	return resp, nil
 }
