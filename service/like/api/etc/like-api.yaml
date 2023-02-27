@@ -6,10 +6,6 @@ Mysql:
 Redis:
   Addr: 192.168.0.210:6379
   DB: 0
-RocketMQ:
-  NameServer: 192.168.0.210:9876
-  Topic: TIKTOK_LIKE
-  Group: TIKTOK_LIKE_DEFAULT_GROUP
 Auth:
   AccessSecret: "tiktok89757"
   AccessExpire: 7200

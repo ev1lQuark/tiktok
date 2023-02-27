@@ -49,12 +49,12 @@ func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err 
 	VideoInfoReply, err := l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{VideoId: []int64{videoId}})
 
 	if err != nil {
-		logx.Errorf("Rpc调用失败%w", err)
+		logx.Errorf("rpc error: %w", err)
 		resp = &types.LikeResponse{StatusCode: res.RemoteServiceErrorCode, StatusMsg: "RPC调用失败"}
 		return resp, nil
 	}
 	if VideoInfoReply.AuthorId[0] == 0 {
-		logx.Errorf("视频不存在")
+		logx.Error("视频不存在")
 		resp = &types.LikeResponse{StatusCode: res.BadRequestCode, StatusMsg: "视频不存在"}
 		return resp, nil
 	}
@@ -67,12 +67,12 @@ func (l *LikeLogic) Like(req *types.LikeRequest) (resp *types.LikeResponse, err 
 		cancel = 1 // 取消点赞
 	}
 
-	err = setLike(context.TODO(), l.svcCtx, userId, videoId, VideoInfoReply.AuthorId[0], cancel)
+	err = setLike(l.ctx, l.svcCtx, userId, videoId, VideoInfoReply.AuthorId[0], cancel)
 	if err != nil {
-		logx.Errorf("写入数据库失败%w", err)
+		logx.Error(err)
 		resp = &types.LikeResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: err.Error()}
 		return resp, nil
 	}
 
-	return &types.LikeResponse{StatusCode: res.SuccessCode, StatusMsg: "操作成功"}, nil
+	return &types.LikeResponse{StatusCode: res.SuccessCode, StatusMsg: ""}, nil
 }

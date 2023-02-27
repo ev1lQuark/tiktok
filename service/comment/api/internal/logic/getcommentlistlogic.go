@@ -3,9 +3,10 @@ package logic
 import (
 	"context"
 	"encoding/json"
-	"github.com/ev1lQuark/tiktok/service/comment/model"
 	"sort"
 	"time"
+
+	"github.com/ev1lQuark/tiktok/service/comment/model"
 
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
@@ -56,9 +57,8 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		return resp, nil
 	}
 
-
 	var tableComments []*model.Comment
-	if n, err:= l.svcCtx.Redis.Exists(context.TODO(), strconv.FormatInt(videoId, 10)).Result(); err != nil {
+	if n, err := l.svcCtx.Redis.Exists(context.TODO(), strconv.FormatInt(videoId, 10)).Result(); err != nil {
 		logx.Errorf("Redis error%w", err)
 		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询出错"}
 		return resp, nil
@@ -78,7 +78,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
 				return resp, nil
 			}
-			_, err = l.svcCtx.Redis.Set(context.TODO(), strconv.FormatInt(videoId, 10), string(tableCommentJson), time.Duration(l.svcCtx.Config.Redis.ExpireTime) * time.Second).Result()
+			_, err = l.svcCtx.Redis.Set(context.TODO(), strconv.FormatInt(videoId, 10), string(tableCommentJson), time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
 			if err != nil {
 				logx.Errorf("Redis写入错误:%w", err)
 				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
@@ -92,7 +92,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
 				return resp, nil
 			}
-			_, err = l.svcCtx.Redis.Expire(context.TODO(), strconv.FormatInt(videoId, 10),time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
+			_, err = l.svcCtx.Redis.Expire(context.TODO(), strconv.FormatInt(videoId, 10), time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
 			if err != nil {
 				logx.Errorf("Redis重置时间错误:%w", err)
 				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
@@ -126,18 +126,18 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	})
 
 	// 根据userId获取本账号获赞总数
-	var totalFavoriteNumList *like.GetTotalFavoriteNumReply
+	var totalFavoriteNumList *like.GetFavoriteCountByAuthorIdsReply
 	eg.Go(func() error {
 		var err error
-		totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetTotalFavoriteNum(context.TODO(), &like.GetTotalFavoriteNumReq{UserId: authorIds})
+		totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetFavoriteCountByAuthorIds(context.TODO(), &like.GetFavoriteCountByAuthorIdsReq{AuthorIds: authorIds})
 		return err
 	})
 
 	// 根据userId获取本账号喜欢（点赞）总数
-	var userFavoriteCountList *like.GetFavoriteCountByUserIdReply
+	var userFavoriteCountList *like.GetFavoriteCountByUserIdsReply
 	eg.Go(func() error {
 		var err error
-		userFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserId(context.TODO(), &like.GetFavoriteCountByUserIdReq{UserId: authorIds})
+		userFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserIds(context.TODO(), &like.GetFavoriteCountByUserIdsReq{UserIds: authorIds})
 		return err
 	})
 
@@ -149,10 +149,10 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		return err
 	})
 
-	//错误判断
+	// 错误判断
 	if err := eg.Wait(); err != nil {
 		logx.Errorf("Rpc调用失败%w", err)
-		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询评论列表失败"}
+		resp = &types.GetCommentListResponse{StatusCode: res.RemoteServiceErrorCode, StatusMsg: "查询评论列表失败"}
 		return resp, nil
 	}
 
@@ -170,9 +170,9 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				Signature:       "爱抖音，爱生活",
-				TotalFavorited:  strconv.Itoa(int(totalFavoriteNumList.Count[index])),
+				TotalFavorited:  strconv.Itoa(int(totalFavoriteNumList.CountSlice[index])),
 				WorkCount:       int(workCount.VideoNum[index]),
-				FavoriteCount:   int(userFavoriteCountList.Count[index]),
+				FavoriteCount:   int(userFavoriteCountList.CountSlice[index]),
 			},
 			Content:    value.CommentText,
 			CreateDate: value.CreatDate.Format("01-02"),
@@ -182,4 +182,3 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	resp = &types.GetCommentListResponse{StatusCode: res.SuccessCode, StatusMsg: "获取评论列表成功", CommentList: commentList}
 	return resp, nil
 }
-

@@ -4,46 +4,49 @@ package user;
 
 option go_package = "./like";
 
-//请求
 
-message getTotalFavoriteNumReq{
-  repeated int64 userId = 1;
+
+message getFavoriteCountByAuthorIdsReq{
+  repeated int64 authorIds = 1;
 }
 
-message getFavoriteCountByUserIdReq{
-  repeated int64 userId = 1;
+message getFavoriteCountByAuthorIdsReply{
+  repeated int64 countSlice = 1;
 }
+
+message getFavoriteCountByUserIdsReq{
+  repeated int64 userIds = 1;
+}
+
+message getFavoriteCountByUserIdsReply{
+  repeated int64 countSlice = 1;
+}
+
 message isFavoriteReq{
-  repeated int64 videoId = 1;
-  repeated int64 userId = 2;
+  repeated int64 videoIds = 1;
+  repeated int64 userIds = 2;
 }
-message getFavoriteCountByVideoIdReq{
 
-  repeated int64 videoId = 1;
-}
-//响应
-message getTotalFavoriteNumReply{
-  repeated int64 count = 1;
-}
-message getFavoriteCountByUserIdReply{
-  repeated int64 count = 1;
-
-}
 message isFavoriteReply{
-  repeated bool isFavorite =1;
+  repeated bool isFavoriteSlice = 1;
 }
-message getFavoriteCountByVideoIdReply{
-  repeated int64 count = 1;
+
+message getFavoriteCountByVideoIdsReq{
+  repeated int64 videoIds = 1;
+}
+
+message getFavoriteCountByVideoIdsReply{
+  repeated int64 countSlice = 1;
 
 }
 
 service like {
   //根据userId获取本账号所发视频获赞总数
-  rpc getTotalFavoriteNum(getTotalFavoriteNumReq) returns(getTotalFavoriteNumReply);
+  rpc getFavoriteCountByAuthorIds(getFavoriteCountByAuthorIdsReq) returns(getFavoriteCountByAuthorIdsReply);
   //根据userId获取本账号喜欢（点赞）总数
-  rpc getFavoriteCountByUserId(getFavoriteCountByUserIdReq) returns(getFavoriteCountByUserIdReply);
+  rpc getFavoriteCountByUserIds(getFavoriteCountByUserIdsReq) returns(getFavoriteCountByUserIdsReply);
   //根据videoId获取视频点赞总数
-  rpc getFavoriteCountByVideoId(getFavoriteCountByVideoIdReq) returns(getFavoriteCountByVideoIdReply);
+  rpc getFavoriteCountByVideoIds(getFavoriteCountByVideoIdsReq) returns(getFavoriteCountByVideoIdsReply);
   //根据userId和videoId判断是否点赞
   rpc isFavorite(isFavoriteReq) returns(isFavoriteReply);
 }

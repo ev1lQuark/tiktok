@@ -35,19 +35,21 @@ func NewFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FeedLogic {
 
 func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) {
 	// 参数校验
+	var lastTime time.Time
 	if len(req.LatestTime) == 0 {
-		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
-		return resp, nil
+		lastTime = time.Now()
+	} else {
+		t, err := strconv.ParseInt(req.LatestTime, 10, 64)
+		if err != nil {
+			resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
+			return resp, nil
+		}
+		if t > 9999999999 {
+			t = t / 1000
+		}
+		lastTime = time.Unix(t, 0)
 	}
-	t, err := strconv.ParseInt(req.LatestTime, 10, 64)
-	if err != nil {
-		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
-		return resp, nil
-	}
-	if t > 9999999999 {
-		t = t / 1000
-	}
-	lastTime := time.Unix(t, 0)
+
 	//查找last date最近视屏
 	videoQuery := l.svcCtx.Query.Video
 	tableVideos, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
@@ -61,12 +63,12 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	authorIds := make([]int64, 0, len(tableVideos))
 	videoIds := make([]int64, 0, len(tableVideos))
 
-	userIds := make([]int64, len(tableVideos), len(tableVideos))
+	userIds := make([]int64, len(tableVideos))
 	if req.Token != "" {
 		userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 		if err != nil {
 			logx.Error(err)
-			msg := fmt.Sprintf("token 验证失败")
+			msg := fmt.Sprintf("token 验证失败：%v", err)
 			return &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
 		}
 		for index := range tableVideos {
@@ -77,7 +79,6 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	for _, value := range tableVideos {
 		authorIds = append(authorIds, value.AuthorID)
 		videoIds = append(videoIds, value.ID)
-		userIds = append(userIds)
 	}
 
 	var eg errgroup.Group
@@ -87,54 +88,71 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	eg.Go(func() error {
 		var err error
 		authorNameList, err = l.svcCtx.UserRpc.GetNames(l.ctx, &user.IdListReq{IdList: authorIds})
-		return err
+		if err != nil {
+			return fmt.Errorf("UserRPC GetNames error: %w", err)
+		}
+		return nil
 	})
 
-	// 根据Id获取作者获赞总数
-	var authorTotalFavoritedList *like.GetTotalFavoriteNumReply
+	// 根据authorIds获取作者获赞总数
+	var authorTotalFavoritedList *like.GetFavoriteCountByAuthorIdsReply
 	eg.Go(func() error {
 		var err error
-		authorTotalFavoritedList, err = l.svcCtx.LikeRpc.GetTotalFavoriteNum(l.ctx, &like.GetTotalFavoriteNumReq{UserId: authorIds})
-		return err
+		authorTotalFavoritedList, err = l.svcCtx.LikeRpc.GetFavoriteCountByAuthorIds(l.ctx, &like.GetFavoriteCountByAuthorIdsReq{AuthorIds: authorIds})
+		if err != nil {
+			return fmt.Errorf("LikeRPC GetFavoriteCountByAuthorIds error: %w", err)
+		}
+		return nil
 	})
 
-	// 根据Id获取作者喜欢（点赞）总数
-	var authorFavoriteCountList *like.GetFavoriteCountByUserIdReply
+	// 根据authorIds 获取作者喜欢（点赞）总数
+	var authorFavoriteCountList *like.GetFavoriteCountByUserIdsReply
 	eg.Go(func() error {
 		var err error
-		authorFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserId(l.ctx, &like.GetFavoriteCountByUserIdReq{UserId: authorIds})
-		return err
+		authorFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserIds(l.ctx, &like.GetFavoriteCountByUserIdsReq{UserIds: authorIds})
+		if err != nil {
+			return fmt.Errorf("LikeRPC GetFavoriteCountByUserIds error: %w", err)
+		}
+		return nil
 	})
 
-	// 根据videoId获取视屏点赞总数
-	var videoFavoriteCountList *like.GetFavoriteCountByVideoIdReply
+	// 根据videoIds获取视频点赞总数
+	var videoFavoriteCountList *like.GetFavoriteCountByVideoIdsReply
 	eg.Go(func() error {
 		var err error
-		videoFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByVideoId(l.ctx, &like.GetFavoriteCountByVideoIdReq{VideoId: videoIds})
-		return err
+		videoFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByVideoIds(l.ctx, &like.GetFavoriteCountByVideoIdsReq{VideoIds: videoIds})
+		if err != nil {
+			return fmt.Errorf("LikeRPC GetFavoriteCountByVideoIds error: %w", err)
+		}
+		return nil
 	})
 
-	// 根据videoId获取视屏评论总数
+	// 根据videoId获取视频评论总数
 	var videoCommentCountList *comment.GetComentCountByVideoIdReply
 	eg.Go(func() error {
 		var err error
 		videoCommentCountList, err = l.svcCtx.CommentRpc.GetCommentCountByVideoId(l.ctx, &comment.GetComentCountByVideoIdReq{VideoId: videoIds})
-		return err
+		if err != nil {
+			return fmt.Errorf("CommentRPC GetCommentCountByVideoId error: %w", err)
+		}
+		return nil
 	})
 
 	// 根据userId和videoId判断是否点赞
 	var isFavoriteList = &like.IsFavoriteReply{}
 	eg.Go(func() error {
 		var err error
-		isFavoriteList, err = l.svcCtx.LikeRpc.IsFavorite(l.ctx, &like.IsFavoriteReq{VideoId: videoIds, UserId: userIds})
-		return err
+		isFavoriteList, err = l.svcCtx.LikeRpc.IsFavorite(l.ctx, &like.IsFavoriteReq{VideoIds: videoIds, UserIds: userIds})
+		if err != nil {
+			return fmt.Errorf("LikeRPC IsFavorite error: %w", err)
+		}
+		return nil
 	})
 
-	//错误判断
+	// 错误判断
 	if err := eg.Wait(); err != nil {
-		msg := fmt.Sprintf("调用Rpc失敗%v", err)
-		logx.Error(msg)
-		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
+		logx.Error(err)
+		resp = &types.FeedReply{StatusCode: res.RemoteServiceErrorCode, StatusMsg: err.Error()}
 		return resp, nil
 	}
 
@@ -165,15 +183,15 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				Signature:       "爱抖音，爱生活",
-				TotalFavorited:  strconv.Itoa(int(authorTotalFavoritedList.Count[index])),
+				TotalFavorited:  strconv.Itoa(int(authorTotalFavoritedList.CountSlice[index])),
 				WorkCount:       authorWorkCountList[index],
-				FavoriteCount:   int(authorFavoriteCountList.Count[index]),
+				FavoriteCount:   int(authorFavoriteCountList.CountSlice[index]),
 			},
 			PlayURL:       "http://" + path.Join(l.svcCtx.Config.Minio.Endpoint, value.PlayURL),
 			CoverURL:      "http://" + path.Join(l.svcCtx.Config.Minio.Endpoint, value.CoverURL),
-			FavoriteCount: int(videoFavoriteCountList.Count[index]),
+			FavoriteCount: int(videoFavoriteCountList.CountSlice[index]),
 			CommentCount:  int(videoCommentCountList.Count[index]),
-			IsFavorite:    isFavoriteList.IsFavorite[index],
+			IsFavorite:    isFavoriteList.IsFavoriteSlice[index],
 			Title:         value.Title,
 		})
 	}

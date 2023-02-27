@@ -23,21 +23,21 @@ func NewLikeServer(svcCtx *svc.ServiceContext) *LikeServer {
 }
 
 // 根据userId获取本账号所发视频获赞总数
-func (s *LikeServer) GetTotalFavoriteNum(ctx context.Context, in *like.GetTotalFavoriteNumReq) (*like.GetTotalFavoriteNumReply, error) {
-	l := logic.NewGetTotalFavoriteNumLogic(ctx, s.svcCtx)
-	return l.GetTotalFavoriteNum(in)
+func (s *LikeServer) GetFavoriteCountByAuthorIds(ctx context.Context, in *like.GetFavoriteCountByAuthorIdsReq) (*like.GetFavoriteCountByAuthorIdsReply, error) {
+	l := logic.NewGetFavoriteCountByAuthorIdsLogic(ctx, s.svcCtx)
+	return l.GetFavoriteCountByAuthorIds(in)
 }
 
 // 根据userId获取本账号喜欢（点赞）总数
-func (s *LikeServer) GetFavoriteCountByUserId(ctx context.Context, in *like.GetFavoriteCountByUserIdReq) (*like.GetFavoriteCountByUserIdReply, error) {
-	l := logic.NewGetFavoriteCountByUserIdLogic(ctx, s.svcCtx)
-	return l.GetFavoriteCountByUserId(in)
+func (s *LikeServer) GetFavoriteCountByUserIds(ctx context.Context, in *like.GetFavoriteCountByUserIdsReq) (*like.GetFavoriteCountByUserIdsReply, error) {
+	l := logic.NewGetFavoriteCountByUserIdsLogic(ctx, s.svcCtx)
+	return l.GetFavoriteCountByUserIds(in)
 }
 
-// 根据videoId获取视屏点赞总数
-func (s *LikeServer) GetFavoriteCountByVideoId(ctx context.Context, in *like.GetFavoriteCountByVideoIdReq) (*like.GetFavoriteCountByVideoIdReply, error) {
-	l := logic.NewGetFavoriteCountByVideoIdLogic(ctx, s.svcCtx)
-	return l.GetFavoriteCountByVideoId(in)
+// 根据videoId获取视频点赞总数
+func (s *LikeServer) GetFavoriteCountByVideoIds(ctx context.Context, in *like.GetFavoriteCountByVideoIdsReq) (*like.GetFavoriteCountByVideoIdsReply, error) {
+	l := logic.NewGetFavoriteCountByVideoIdsLogic(ctx, s.svcCtx)
+	return l.GetFavoriteCountByVideoIds(in)
 }
 
 // 根据userId和videoId判断是否点赞
