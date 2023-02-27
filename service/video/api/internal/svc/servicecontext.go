@@ -9,6 +9,7 @@ import (
 	"github.com/ev1lQuark/tiktok/service/video/query"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/zrpc"
 	"gorm.io/gorm"
 )
@@ -20,6 +21,8 @@ type ServiceContext struct {
 	UserRpc     userclient.User
 	CommentRpc  commentclient.Comment
 	LikeRpc     likeclient.Like
+	Redis      *redis.Client
+	ContinuedTime int64
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -38,5 +41,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		UserRpc:     userclient.NewUser(zrpc.MustNewClient(c.UserRpc)),
 		CommentRpc:  commentclient.NewComment(zrpc.MustNewClient(c.CommentRpc)),
 		LikeRpc:     likeclient.NewLike(zrpc.MustNewClient(c.LikeRpc)),
+		Redis:      redis.NewClient(&redis.Options{Addr: c.Redis.Addr, DB: c.Redis.DB}),
+		ContinuedTime: c.ContinuedTime,
 	}
 }

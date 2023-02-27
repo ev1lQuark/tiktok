@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"fmt"
+	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"strconv"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/sync/errgroup"
 )
+
 
 type CommentLogic struct {
 	logx.Logger
@@ -85,19 +87,27 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 			Cancel:      0,
 		}
 
-		err = commentQuery.WithContext(l.ctx).Create(comment)
+
+		err = commentQuery.WithContext(context.TODO()).Create(comment)
 		if err != nil {
-			logx.Error(err)
+			logx.Errorf("缓存失效失败%w", err)
 			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
 			return resp, nil
 		}
 
 		// 缓存策略
 		// 直接缓存失效
-		_, err = l.svcCtx.Redis.Del(l.ctx, strconv.FormatInt(videoId, 10)).Result()
+		_, err = l.svcCtx.Redis.Del(context.TODO(),strconv.FormatInt(videoId, 10)).Result()
 
 		if err != nil {
 			logx.Errorf("缓存失效失败%w", err)
+			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
+			return resp, nil
+		}
+
+		_, err = l.svcCtx.Redis.HIncrBy(context.TODO(), VideoIDToCommentCount, strconv.FormatInt(videoId, 10), 1).Result()
+		if err != nil {
+			logx.Errorf("videoCommentCountRedis增加失败:%w", err)
 			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
 			return resp, nil
 		}
@@ -171,7 +181,20 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 			return &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
 		}
 		// 缓存策略直接失效
-		l.svcCtx.Redis.Del(context.TODO(), strconv.FormatInt(videoId, 10))
+
+		_, err = l.svcCtx.Redis.Del(context.TODO(),strconv.FormatInt(videoId, 10)).Result()
+		if err != nil {
+			logx.Errorf("缓存失效失败%w", err)
+			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论失败"}
+			return resp, nil
+		}
+
+		_, err = l.svcCtx.Redis.HIncrBy(context.TODO(), VideoIDToCommentCount, strconv.FormatInt(videoId, 10), -1).Result()
+		if err != nil {
+			logx.Errorf("videoCommentCountRedis减少失败:%w", err)
+			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
+			return resp, nil
+		}
 
 		body := fmt.Sprintf("%d-%d", commentId, videoId)
 		msg := &primitive.Message{
