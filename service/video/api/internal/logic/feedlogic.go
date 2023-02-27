@@ -2,7 +2,10 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/ev1lQuark/tiktok/service/video/model"
+	"github.com/redis/go-redis/v9"
 	"path"
 	"strconv"
 	"time"
@@ -33,6 +36,9 @@ func NewFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FeedLogic {
 	}
 }
 
+var VideoDataListJSON = "VIDEO::ZSET::VIDEO_DATA_JSON"
+var AuthorIdToWorkCount = "VIDEO::AUTHORID::VIDEO_COUNT"
+
 func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) {
 	// 参数校验
 	var lastTime time.Time
@@ -50,35 +56,74 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 		lastTime = time.Unix(t, 0)
 	}
 
-	//查找last date最近视屏
-	videoQuery := l.svcCtx.Query.Video
-	tableVideos, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
 
-	if err != nil {
-		msg := fmt.Sprintf("查询视频失败：%v", err)
-		logx.Error(msg)
-		resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
-		return resp, nil
-	}
-	authorIds := make([]int64, 0, len(tableVideos))
-	videoIds := make([]int64, 0, len(tableVideos))
-
-	userIds := make([]int64, len(tableVideos))
+	var userId int64
 	if req.Token != "" {
-		userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
+		userId, err = jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 		if err != nil {
 			logx.Error(err)
 			msg := fmt.Sprintf("token 验证失败：%v", err)
 			return &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
 		}
-		for index := range tableVideos {
-			userIds[index] = userId
+	}
+
+	//查找last date最近视屏
+
+	var tableVideos []*model.Video
+	// 多设置1小时防止边界问题
+	if time.Now().Sub(lastTime).Hours() > float64(l.svcCtx.Config.ContinuedTime + 1) {
+		videoQuery := l.svcCtx.Query.Video
+		tableVideos, err = videoQuery.WithContext(context.TODO()).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
+		if err != nil {
+			msg := fmt.Sprintf("查询视频失败：%v", err)
+			logx.Error(msg)
+			resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
+			return resp, nil
+		}
+	} else {
+		opt := &redis.ZRangeBy{
+			Min:    "0",                                      //最小分数
+			Max:    strconv.FormatInt(lastTime.Unix(), 10),   //最大分数
+			Offset: 0,                                        //在满足条件的范围，从offset下标处开始取值
+			Count: int64(l.svcCtx.Config.Video.NumberLimit), //查询结果集个数
+		}
+		tableVideoListJSON := l.svcCtx.Redis.ZRevRangeByScore(context.TODO(), VideoDataListJSON, opt).Val()
+		for _, videoJSON := range tableVideoListJSON {
+			var video model.Video
+			err := json.Unmarshal([]byte(videoJSON), &video)
+			if err != nil {
+				msg := fmt.Sprintf("json反序列化失败：%v", err)
+				logx.Error(msg)
+				resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
+				return resp, nil
+			}
+			tableVideos = append(tableVideos, &video)
+		}
+		if len(tableVideos) < l.svcCtx.Config.Video.NumberLimit {
+			videoQuery := l.svcCtx.Query.Video
+			tableVideos, err = videoQuery.WithContext(context.TODO()).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
+			if err != nil {
+				msg := fmt.Sprintf("查询视频失败：%v", err)
+				logx.Error(msg)
+				resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
+				return resp, nil
+			}
 		}
 	}
+
+	authorIds := make([]int64, 0, len(tableVideos))
+	videoIds := make([]int64, 0, len(tableVideos))
+
+	userIds := make([]int64, len(tableVideos))
+
 
 	for _, value := range tableVideos {
 		authorIds = append(authorIds, value.AuthorID)
 		videoIds = append(videoIds, value.ID)
+	}
+
+	for index := range tableVideos {
+		userIds[index] = userId
 	}
 
 	var eg errgroup.Group
@@ -159,14 +204,21 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	// 获取authorWorkCountList
 	authorWorkCountList := make([]int, 0, len(tableVideos))
 	for index := 0; index < len(tableVideos); index++ {
-		count, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.AuthorID.Eq(authorIds[index])).Count()
+		count, err := l.svcCtx.Redis.HGet(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(authorIds[index], 10)).Result()
 		if err != nil {
-			msg := fmt.Sprintf("查询视频失败：%v", err)
+			msg := fmt.Sprintf("Redis查询失败：%v", err)
 			logx.Error(msg)
 			resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
 			return resp, nil
 		}
-		authorWorkCountList = append(authorWorkCountList, int(count))
+		countInt64, _ := strconv.ParseInt(count, 10, 64)
+		if err != nil {
+			msg := fmt.Sprintf("count解析int失败：%v", err)
+			logx.Error(msg)
+			resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
+			return resp, nil
+		}
+		authorWorkCountList = append(authorWorkCountList, int(countInt64))
 	}
 
 	// 拼接请求

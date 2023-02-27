@@ -132,13 +132,24 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 	}
 
 	// 获取workCount
-	workCount, err := videoQuery.WithContext(context.TODO()).Where(videoQuery.AuthorID.Eq(userId)).Count()
+
+
+	count, err := l.svcCtx.Redis.HGet(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(userId, 10)).Result()
 	if err != nil {
-		msg := fmt.Sprintf("查询视频失败：%v", err)
+		msg := fmt.Sprintf("Redis查询失败：%v", err)
 		logx.Error(msg)
 		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
 		return resp, nil
 	}
+
+	workCount, _ := strconv.ParseInt(count, 10, 64)
+	if err != nil {
+		msg := fmt.Sprintf("count解析int失败：%v", err)
+		logx.Error(msg)
+		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
+		return resp, nil
+	}
+
 
 	// 拼接请求
 	videos := make([]types.VideoList, 0, len(tableVideos))
