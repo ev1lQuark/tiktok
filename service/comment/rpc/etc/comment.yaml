@@ -6,6 +6,7 @@ Etcd:
   Key: comment.rpc
 Mysql:
   DataSource: root:password@tcp(192.168.0.210:3306)/tiktok?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai
-CacheRedis:
-  - Host: 192.168.0.210:6379
-    Type: node
+Redis:
+  Addr: 192.168.0.210:6379
+  DB: 1
+  Expire: 7200

@@ -3,6 +3,7 @@ package svc
 import (
 	"github.com/ev1lQuark/tiktok/service/comment/query"
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/internal/config"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -10,6 +11,7 @@ import (
 type ServiceContext struct {
 	Config config.Config
 	Query  *query.Query
+	Redis      *redis.Client
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -22,5 +24,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config: c,
 		Query:  query,
+		Redis:      redis.NewClient(&redis.Options{Addr: c.Redis.Addr, DB: c.Redis.DB}),
 	}
 }

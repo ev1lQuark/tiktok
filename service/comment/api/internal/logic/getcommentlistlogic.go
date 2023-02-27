@@ -3,8 +3,8 @@ package logic
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/ev1lQuark/tiktok/service/comment/model"
-	"sort"
 	"time"
 
 	"github.com/ev1lQuark/tiktok/common/jwt"
@@ -26,6 +26,10 @@ type GetCommentListLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
+
+var VideoIDToCommentListJSON = "COMMENT::VIDEOID:%d:COMMENTLIST_JSON"
+var VideoIDToCommentCount = "COMMENT::VIDEOID::COMMENT_COUNT"
+
 
 func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCommentListLogic {
 	return &GetCommentListLogic{
@@ -58,55 +62,48 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 
 
 	var tableComments []*model.Comment
-	if n, err:= l.svcCtx.Redis.Exists(context.TODO(), strconv.FormatInt(videoId, 10)).Result(); err != nil {
-		logx.Errorf("Redis error%w", err)
-		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询出错"}
+	videoIDToCommentListJSON := fmt.Sprintf(VideoIDToCommentListJSON, videoId)
+	tableCommentJson, err := l.svcCtx.Redis.Get(context.TODO(), videoIDToCommentListJSON).Result()
+	// 命中缓存
+	if err != nil {
+		logx.Errorf("Redis查询错误:%w", err)
+		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
 		return resp, nil
+	}
+	if tableComments != nil {
+		_, err = l.svcCtx.Redis.Expire(context.TODO(), videoIDToCommentListJSON,time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
+		if err != nil {
+			logx.Errorf("Redis重置时间错误:%w", err)
+			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
+			return resp, nil
+		}
+		err = json.Unmarshal([]byte(tableCommentJson), &tableComments)
+		if err != nil {
+			logx.Errorf("Json反序列化错误:%w", err)
+			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
+			return resp, nil
+		}
 	} else {
-		// 没有命中缓存
-		if n == 0 {
-			commentQuery := l.svcCtx.Query.Comment
-			tableComments, err = commentQuery.WithContext(context.TODO()).Where(commentQuery.VideoID.Eq(videoId)).Where(commentQuery.Cancel.Eq(0)).Order(commentQuery.CreatDate.Desc()).Find()
-			if err != nil {
-				logx.Errorf("查询错误:%w", err)
-				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-				return resp, nil
-			}
-			tableCommentJson, err := json.Marshal(tableComments)
-			if err != nil {
-				logx.Errorf("json序列化错误:%w", err)
-				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-				return resp, nil
-			}
-			_, err = l.svcCtx.Redis.Set(context.TODO(), strconv.FormatInt(videoId, 10), string(tableCommentJson), time.Duration(l.svcCtx.Config.Redis.ExpireTime) * time.Second).Result()
-			if err != nil {
-				logx.Errorf("Redis写入错误:%w", err)
-				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-				return resp, nil
-			}
-		} else {
-			// 命中缓存
-			tableCommentJson, err := l.svcCtx.Redis.Get(context.TODO(), strconv.FormatInt(videoId, 10)).Result()
-			if err != nil {
-				logx.Errorf("Redis查询错误:%w", err)
-				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-				return resp, nil
-			}
-			_, err = l.svcCtx.Redis.Expire(context.TODO(), strconv.FormatInt(videoId, 10),time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
-			if err != nil {
-				logx.Errorf("Redis重置时间错误:%w", err)
-				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-				return resp, nil
-			}
-			err = json.Unmarshal([]byte(tableCommentJson), &tableComments)
-			if err != nil {
-				logx.Errorf("Json反序列化错误:%w", err)
-				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-				return resp, nil
-			}
-			sort.Slice(tableComments, func(i, j int) bool {
-				return tableComments[i].CreatDate.After(tableComments[j].CreatDate)
-			})
+		commentQuery := l.svcCtx.Query.Comment
+		tableComments, err = commentQuery.WithContext(context.TODO()).Where(commentQuery.VideoID.Eq(videoId)).Where(commentQuery.Cancel.Eq(0)).Order(commentQuery.CreatDate.Desc()).Find()
+		if err != nil {
+			logx.Errorf("查询错误:%w", err)
+			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
+			return resp, nil
+		}
+		tableCommentJson, err := json.Marshal(tableComments)
+		if err != nil {
+			logx.Errorf("json序列化错误:%w", err)
+			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
+			return resp, nil
+		}
+
+		_, err = l.svcCtx.Redis.Set(context.TODO(), videoIDToCommentListJSON, string(tableCommentJson), time.Duration(l.svcCtx.Config.Redis.ExpireTime) * time.Second).Result()
+
+		if err != nil {
+			logx.Errorf("Redis写入错误:%w", err)
+			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
+			return resp, nil
 		}
 	}
 

@@ -6,7 +6,7 @@ Mysql:
 Redis:
   Addr: 192.168.0.210:6379
   DB: 1
-  Expire: 7200
+  ExpireTime: 7200
 RocketMQ:
   NameServer: 192.168.0.210:9876
   Topic: TIKTOK_COMMENT
