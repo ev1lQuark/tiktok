@@ -31,7 +31,6 @@ func newLike(db *gorm.DB, opts ...gen.DOOption) like {
 	_like.UserID = field.NewInt64(tableName, "user_id")
 	_like.VideoID = field.NewInt64(tableName, "video_id")
 	_like.Cancel = field.NewInt32(tableName, "cancel")
-	_like.AuthorID = field.NewInt64(tableName, "author_id")
 
 	_like.fillFieldMap()
 
@@ -41,12 +40,11 @@ func newLike(db *gorm.DB, opts ...gen.DOOption) like {
 type like struct {
 	likeDo likeDo
 
-	ALL      field.Asterisk
-	ID       field.Int64
-	UserID   field.Int64
-	VideoID  field.Int64
-	Cancel   field.Int32
-	AuthorID field.Int64
+	ALL     field.Asterisk
+	ID      field.Int64
+	UserID  field.Int64
+	VideoID field.Int64
+	Cancel  field.Int32
 
 	fieldMap map[string]field.Expr
 }
@@ -67,7 +65,6 @@ func (l *like) updateTableName(table string) *like {
 	l.UserID = field.NewInt64(table, "user_id")
 	l.VideoID = field.NewInt64(table, "video_id")
 	l.Cancel = field.NewInt32(table, "cancel")
-	l.AuthorID = field.NewInt64(table, "author_id")
 
 	l.fillFieldMap()
 
@@ -90,12 +87,11 @@ func (l *like) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (l *like) fillFieldMap() {
-	l.fieldMap = make(map[string]field.Expr, 5)
+	l.fieldMap = make(map[string]field.Expr, 4)
 	l.fieldMap["id"] = l.ID
 	l.fieldMap["user_id"] = l.UserID
 	l.fieldMap["video_id"] = l.VideoID
 	l.fieldMap["cancel"] = l.Cancel
-	l.fieldMap["author_id"] = l.AuthorID
 }
 
 func (l like) clone(db *gorm.DB) like {

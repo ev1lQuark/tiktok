@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/apache/rocketmq-client-go/v2/primitive"
+
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
@@ -65,7 +67,7 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 
 	if err != nil {
 		logx.Errorf("Rpc调用失败%w", err)
-		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
+		resp = &types.CommentResponse{StatusCode: res.RemoteServiceErrorCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
 	if videoInfo.AuthorId[0] == 0 {
@@ -75,8 +77,8 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 	}
 
 	commentQuery := l.svcCtx.Query.Comment
-	//为1，发布评论
 	if actionType == 1 {
+		// 发布评论
 		comment := &model.Comment{
 			UserID:      userId,
 			VideoID:     videoId,
@@ -85,9 +87,10 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 			Cancel:      0,
 		}
 
+
 		err = commentQuery.WithContext(context.TODO()).Create(comment)
 		if err != nil {
-			logx.Errorf("发布评论失败%w", err)
+			logx.Errorf("缓存失效失败%w", err)
 			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
 			return resp, nil
 		}
@@ -120,19 +123,18 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 		})
 
 		// 根据userId获取本账号获赞总数
-		var totalFavoriteNumList *like.GetTotalFavoriteNumReply
-
+		var totalFavoriteNumList *like.GetFavoriteCountByAuthorIdsReply
 		eg.Go(func() error {
 			var err error
-			totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetTotalFavoriteNum(l.ctx, &like.GetTotalFavoriteNumReq{UserId: []int64{userId}})
+			totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetFavoriteCountByAuthorIds(l.ctx, &like.GetFavoriteCountByAuthorIdsReq{AuthorIds: []int64{userId}})
 			return err
 		})
 
 		// 根据userId获取本账号喜欢（点赞）总数
-		var userFavoriteCountList *like.GetFavoriteCountByUserIdReply
+		var userFavoriteCountList *like.GetFavoriteCountByUserIdsReply
 		eg.Go(func() error {
 			var err error
-			userFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserId(l.ctx, &like.GetFavoriteCountByUserIdReq{UserId: []int64{userId}})
+			userFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserIds(l.ctx, &like.GetFavoriteCountByUserIdsReq{UserIds: []int64{userId}})
 			return err
 		})
 
@@ -162,9 +164,9 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 				Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 				Signature:       "爱抖音，爱生活",
-				TotalFavorited:  strconv.Itoa(int(totalFavoriteNumList.Count[0])),
+				TotalFavorited:  strconv.FormatInt(totalFavoriteNumList.CountSlice[0], 10),
 				WorkCount:       int(workCount.VideoNum[0]),
-				FavoriteCount:   int(userFavoriteCountList.Count[0]),
+				FavoriteCount:   int(userFavoriteCountList.CountSlice[0]),
 			},
 			Content:    comment.CommentText,
 			CreateDate: comment.CreatDate.String(),
@@ -179,6 +181,7 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 			return &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
 		}
 		// 缓存策略直接失效
+
 		_, err = l.svcCtx.Redis.Del(context.TODO(),strconv.FormatInt(videoId, 10)).Result()
 		if err != nil {
 			logx.Errorf("缓存失效失败%w", err)

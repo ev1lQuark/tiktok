@@ -58,17 +58,17 @@ func (l *UserInfoLogic) UserInfo(req *types.UserInfoReq) (resp *types.UserInfoRe
 		return err
 	})
 
-	var totalFavoriteNumReply *like.GetTotalFavoriteNumReply
+	var totalFavoriteNumReply *like.GetFavoriteCountByAuthorIdsReply
 	eg.Go(func() error {
 		var err error
-		totalFavoriteNumReply, err = l.svcCtx.LikeRpc.GetTotalFavoriteNum(context.TODO(), &like.GetTotalFavoriteNumReq{UserId: []int64{userId}})
+		totalFavoriteNumReply, err = l.svcCtx.LikeRpc.GetFavoriteCountByAuthorIds(context.TODO(), &like.GetFavoriteCountByAuthorIdsReq{AuthorIds: []int64{userId}})
 		return err
 	})
 
-	var favoriteCountReply *like.GetFavoriteCountByUserIdReply
+	var favoriteCountReply *like.GetFavoriteCountByUserIdsReply
 	eg.Go(func() error {
 		var err error
-		favoriteCountReply, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserId(context.TODO(), &like.GetFavoriteCountByUserIdReq{UserId: []int64{userId}})
+		favoriteCountReply, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserIds(context.TODO(), &like.GetFavoriteCountByUserIdsReq{UserIds: []int64{userId}})
 		return err
 	})
 
@@ -91,9 +91,9 @@ func (l *UserInfoLogic) UserInfo(req *types.UserInfoReq) (resp *types.UserInfoRe
 			Avatar:          "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 			BackgroundImage: "https://inews.gtimg.com/newsapp_bt/0/13352207849/1000",
 			Signature:       "爱抖音，爱生活",
-			TotalFavorited:  strconv.Itoa(int(totalFavoriteNumReply.Count[0])),
+			TotalFavorited:  strconv.Itoa(int(totalFavoriteNumReply.CountSlice[0])),
 			WorkCount:       videoNumReply.VideoNum[0],
-			FavoriteCount:   favoriteCountReply.Count[0],
+			FavoriteCount:   favoriteCountReply.CountSlice[0],
 		},
 	}, nil
 }
