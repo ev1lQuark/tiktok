@@ -70,6 +70,7 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	//查找last date最近视屏
 
 	var tableVideos []*model.Video
+
 	// 多设置2小时防止边界问题
 	if time.Now().Sub(lastTime).Hours() > float64(l.svcCtx.Config.ContinuedTime + 2) {
 		videoQuery := l.svcCtx.Query.Video
@@ -205,6 +206,7 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	authorWorkCountList := make([]int, 0, len(tableVideos))
 	for index := 0; index < len(tableVideos); index++ {
 		count, err := l.svcCtx.Redis.HGet(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(authorIds[index], 10)).Result()
+
 		if err == redis.Nil {
 			count = "0"
 		} else if err != nil {
