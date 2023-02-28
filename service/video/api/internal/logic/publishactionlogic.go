@@ -3,9 +3,11 @@ package logic
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
+	"strconv"
 	"strings"
 
 	"github.com/chilts/sid"
@@ -90,6 +92,7 @@ func (l *PublishActionLogic) PublishAction(req *types.PublishActionReq, file *mu
 		PublishTime: time.Now(),
 		Title:       req.Title,
 	}
+
 	err = videoQuery.WithContext(context.TODO()).Create(video)
 	if err != nil {
 		msg := fmt.Sprintf("插入视频失败：%v", err)
@@ -97,6 +100,41 @@ func (l *PublishActionLogic) PublishAction(req *types.PublishActionReq, file *mu
 		resp = &types.PublishActionReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
 		return resp, nil
 	}
+
+
+	videoJSON, err := json.Marshal(video)
+	if err != nil {
+		logx.Error("JSON序列化出错:%w " + err.Error())
+		resp = &types.PublishActionReply{StatusCode: res.InternalServerErrorCode, StatusMsg: "失败"}
+		return resp, nil
+	}
+
+	l1 := struct {
+		Score  float64
+		Member interface{}
+	}{
+		float64(video.PublishTime.Unix()),
+		string(videoJSON),
+	}
+
+	_, err = l.svcCtx.Redis.ZAdd(context.TODO(), VideoDataListJSON, l1).Result()
+	if err != nil {
+		logx.Error("Redis插入新视频出错%w", err)
+		resp = &types.PublishActionReply{StatusCode: res.InternalServerErrorCode, StatusMsg: "失败"}
+		return resp, nil
+	}
+
+
+	// Redis的map进行increase若不存在key，默认为0
+	_, err = l.svcCtx.Redis.HIncrBy(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(userId, 10), 1).Result()
+	if err != nil {
+		logx.Error("Redis增加对应workCount失败%w", err)
+		resp = &types.PublishActionReply{StatusCode: res.InternalServerErrorCode, StatusMsg: "失败"}
+		return resp, nil
+	}
+
+
+
 	resp = &types.PublishActionReply{StatusCode: res.SuccessCode, StatusMsg: "发布成功"}
 	return resp, nil
 }

@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"log"
 	"path"
 	"strconv"
@@ -135,7 +136,10 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 
 
 	count, err := l.svcCtx.Redis.HGet(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(userId, 10)).Result()
-	if err != nil {
+
+	if err == redis.Nil {
+		count = "0"
+	} else if err != nil {
 		msg := fmt.Sprintf("Redis查询失败：%v", err)
 		logx.Error(msg)
 		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
@@ -149,7 +153,6 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
 		return resp, nil
 	}
-
 
 	// 拼接请求
 	videos := make([]types.VideoList, 0, len(tableVideos))

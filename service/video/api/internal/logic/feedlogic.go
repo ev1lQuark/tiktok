@@ -70,8 +70,9 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	//查找last date最近视屏
 
 	var tableVideos []*model.Video
-	// 多设置1小时防止边界问题
-	if time.Now().Sub(lastTime).Hours() > float64(l.svcCtx.Config.ContinuedTime + 1) {
+
+	// 多设置2小时防止边界问题
+	if time.Now().Sub(lastTime).Hours() > float64(l.svcCtx.Config.ContinuedTime + 2) {
 		videoQuery := l.svcCtx.Query.Video
 		tableVideos, err = videoQuery.WithContext(context.TODO()).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
 		if err != nil {
@@ -205,7 +206,10 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	authorWorkCountList := make([]int, 0, len(tableVideos))
 	for index := 0; index < len(tableVideos); index++ {
 		count, err := l.svcCtx.Redis.HGet(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(authorIds[index], 10)).Result()
-		if err != nil {
+
+		if err == redis.Nil {
+			count = "0"
+		} else if err != nil {
 			msg := fmt.Sprintf("Redis查询失败：%v", err)
 			logx.Error(msg)
 			resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
