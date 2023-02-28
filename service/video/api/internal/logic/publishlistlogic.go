@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"log"
 	"path"
 	"strconv"
@@ -135,7 +136,9 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 
 
 	count, err := l.svcCtx.Redis.HGet(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(userId, 10)).Result()
-	if err != nil {
+	if err == redis.Nil {
+		count = "0"
+	} else if err != nil {
 		msg := fmt.Sprintf("Redis查询失败：%v", err)
 		logx.Error(msg)
 		resp = &types.PublishListReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
