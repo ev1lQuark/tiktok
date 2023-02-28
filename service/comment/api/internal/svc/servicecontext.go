@@ -9,7 +9,6 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/producer"
 	"github.com/ev1lQuark/tiktok/common/db"
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/config"
-	"github.com/ev1lQuark/tiktok/service/comment/api/internal/logic"
 	"github.com/ev1lQuark/tiktok/service/comment/query"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/likeclient"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/userclient"
@@ -22,6 +21,9 @@ import (
 	"time"
 )
 
+var VideoIDToCommentListJSON = "COMMENT::VIDEOID:%d:COMMENTLIST_JSON"
+var VideoIDToCommentCount = "COMMENT::VIDEOID::COMMENT_COUNT"
+
 type ServiceContext struct {
 	Config     config.Config
 	Query      *query.Query
@@ -31,7 +33,7 @@ type ServiceContext struct {
 	Redis      *redis.Client
 	MqProducer rocketmq.Producer
 	MqConsumer rocketmq.PushConsumer
-	Delaytime int
+	Delaytime  int
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -57,7 +59,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Redis:      redis.NewClient(&redis.Options{Addr: c.Redis.Addr, DB: c.Redis.DB}),
 		MqProducer: pdc,
 		MqConsumer: csm,
-		Delaytime: c.DelayTime,
+		Delaytime:  c.DelayTime,
 	}
 	go startMQConsumer(svcCtx)
 	err := readAllCommentCountByVideoId(svcCtx)
@@ -111,7 +113,7 @@ func startMQConsumer(svcCtx *ServiceContext) {
 				go func(svcCtx *ServiceContext, videoId int64) {
 					time.Sleep(time.Duration(svcCtx.Delaytime) * time.Second)
 					// 直接缓存失效
-					svcCtx.Redis.Del(context.TODO(),strconv.FormatInt(videoId, 10))
+					svcCtx.Redis.Del(context.TODO(), strconv.FormatInt(videoId, 10))
 				}(svcCtx, videoId)
 			}
 			return consumer.ConsumeSuccess, nil
@@ -119,7 +121,7 @@ func startMQConsumer(svcCtx *ServiceContext) {
 	c.Start()
 }
 
-func readAllCommentCountByVideoId(svcCtx *ServiceContext) error{
+func readAllCommentCountByVideoId(svcCtx *ServiceContext) error {
 	commentQuery := svcCtx.Query.Comment
 	commentList, err := commentQuery.WithContext(context.TODO()).Select(commentQuery.VideoID).Where(commentQuery.Cancel.Eq(0)).Find()
 	if err != nil {
@@ -132,7 +134,7 @@ func readAllCommentCountByVideoId(svcCtx *ServiceContext) error{
 	}
 
 	for key, value := range commentCount {
-		_, err := svcCtx.Redis.HSet(context.TODO(), logic.VideoIDToCommentCount, strconv.FormatInt(key, 10), strconv.FormatInt(value, 10)).Result()
+		_, err := svcCtx.Redis.HSet(context.TODO(), VideoIDToCommentCount, strconv.FormatInt(key, 10), strconv.FormatInt(value, 10)).Result()
 		if err != nil {
 			return err
 		}
