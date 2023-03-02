@@ -74,9 +74,9 @@ func startMQConsumer(svcCtx *ServiceContext) {
 			for _, msg := range msgs {
 				// 处理消息
 				var commentId, videoId int64
-				_, err := fmt.Sscanf(string(msg.Body), "%d-%d", &commentId, videoId)
+				_, err := fmt.Sscanf(string(msg.Body), "%d-%d", &commentId, &videoId)
 				if err != nil {
-					msg := fmt.Sprintf("删除评论失败：%s", err.Error())
+					msg := fmt.Sprintf("parse id from msg failed: %s", err.Error())
 					logx.Error(msg)
 					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
@@ -85,15 +85,16 @@ func startMQConsumer(svcCtx *ServiceContext) {
 				commentQuery := svcCtx.Query.Comment
 				info, err := commentQuery.WithContext(context.TODO()).Where(commentQuery.ID.Eq(commentId)).Update(commentQuery.Cancel, 1)
 				if err != nil {
-					msg := fmt.Sprintf("删除评论失败：%s", err.Error())
+					msg := fmt.Sprintf("db error: %s", err.Error())
 					logx.Error(msg)
 					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
 				if info.RowsAffected != 1 {
-					msg := fmt.Sprintf("删除评论失败：%s", "评论不存在")
+					msg := fmt.Sprintf("error: %s", "评论不存在")
 					logx.Error(msg)
 					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
+				logx.Info("删除评论成功")
 
 				// 延时双删
 				msg := primitive.NewMessage(svcCtx.Config.RocketMQ.ClearCacheTopic, []byte(fmt.Sprintf("%d", videoId)))
@@ -124,9 +125,11 @@ func startMQConsumer(svcCtx *ServiceContext) {
 					logx.Error(err)
 					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
-				if err := svcCtx.Redis.Del(context.Background(), strconv.FormatInt(videoId, 10)).Err(); err != nil {
+				if err := svcCtx.Redis.Del(context.Background(), fmt.Sprintf(pattern.VideoIDToCommentListJSON, videoId)).Err(); err != nil {
 					logx.Error(err)
 					return consumer.ConsumeRetryLater, err
+				} else {
+					logx.Info("清除缓存成功")
 				}
 			}
 			return consumer.ConsumeSuccess, nil

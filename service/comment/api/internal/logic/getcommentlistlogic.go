@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -43,7 +44,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	// Parse jwt token
 	_, err = jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	if err != nil {
-		logx.Errorf("jwt 认证失败%w", err)
+		logx.Errorf("jwt 认证失败：%w", err)
 		resp = &types.GetCommentListResponse{
 			StatusCode: res.AuthFailedCode,
 			StatusMsg:  "jwt 认证失败",
@@ -54,53 +55,54 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	// 校验参数
 	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
 	if err != nil {
-		logx.Errorf("参数错误%w", err)
-		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
+		logx.Errorf("参数错误：%w", err)
+		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: err.Error()}
 		return resp, nil
 	}
 
 	var tableComments []*model.Comment
 	videoIDToCommentListJSON := fmt.Sprintf(pattern.VideoIDToCommentListJSON, videoId)
-	tableCommentJson, err := l.svcCtx.Redis.Get(context.TODO(), videoIDToCommentListJSON).Result()
-	// 命中缓存
-	if err != nil && err != redis.Nil {
-		logx.Errorf("Redis查询错误:%w", err)
-		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-		return resp, nil
-	}
-	if err != redis.Nil {
-		_, err = l.svcCtx.Redis.Expire(context.TODO(), videoIDToCommentListJSON, time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
+	tableCommentJson, err := l.svcCtx.Redis.Get(l.ctx, videoIDToCommentListJSON).Result()
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
+			logx.Error(err)
+			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: err.Error()}
+			return resp, nil
+		} else {
+			// 未命中缓存，从数据库中查询
+			commentQuery := l.svcCtx.Query.Comment
+			tableComments, err = commentQuery.WithContext(l.ctx).Where(commentQuery.VideoID.Eq(videoId)).Where(commentQuery.Cancel.Eq(0)).Order(commentQuery.CreatDate.Desc()).Find()
+			if err != nil {
+				logx.Error(err)
+				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: err.Error()}
+				return resp, nil
+			}
+			tableCommentJson, err := json.Marshal(tableComments)
+			if err != nil {
+				logx.Error(err)
+				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: err.Error()}
+				return resp, nil
+			}
+
+			_, err = l.svcCtx.Redis.Set(l.ctx, videoIDToCommentListJSON, string(tableCommentJson), time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
+
+			if err != nil {
+				logx.Error(err)
+				resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: err.Error()}
+				return resp, nil
+			}
+		}
+	} else {
+		_, err = l.svcCtx.Redis.Expire(l.ctx, videoIDToCommentListJSON, time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
 		if err != nil {
-			logx.Errorf("Redis重置时间错误:%w", err)
-			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
+			logx.Error(err)
+			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: err.Error()}
 			return resp, nil
 		}
 		err = json.Unmarshal([]byte(tableCommentJson), &tableComments)
 		if err != nil {
-			logx.Errorf("Json反序列化错误:%w", err)
-			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-			return resp, nil
-		}
-	} else {
-		commentQuery := l.svcCtx.Query.Comment
-		tableComments, err = commentQuery.WithContext(context.TODO()).Where(commentQuery.VideoID.Eq(videoId)).Where(commentQuery.Cancel.Eq(0)).Order(commentQuery.CreatDate.Desc()).Find()
-		if err != nil {
-			logx.Errorf("查询错误:%w", err)
-			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-			return resp, nil
-		}
-		tableCommentJson, err := json.Marshal(tableComments)
-		if err != nil {
-			logx.Errorf("json序列化错误:%w", err)
-			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
-			return resp, nil
-		}
-
-		_, err = l.svcCtx.Redis.Set(context.TODO(), videoIDToCommentListJSON, string(tableCommentJson), time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
-
-		if err != nil {
-			logx.Errorf("Redis写入错误:%w", err)
-			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
+			logx.Error(err)
+			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: err.Error()}
 			return resp, nil
 		}
 	}
@@ -116,7 +118,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	var userNameList *user.NameListReply
 	eg.Go(func() error {
 		var err error
-		userNameList, err = l.svcCtx.UserRpc.GetNames(context.TODO(), &user.IdListReq{IdList: authorIds})
+		userNameList, err = l.svcCtx.UserRpc.GetNames(l.ctx, &user.IdListReq{IdList: authorIds})
 		return err
 	})
 
@@ -124,7 +126,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	var totalFavoriteNumList *like.GetFavoriteCountByAuthorIdsReply
 	eg.Go(func() error {
 		var err error
-		totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetFavoriteCountByAuthorIds(context.TODO(), &like.GetFavoriteCountByAuthorIdsReq{AuthorIds: authorIds})
+		totalFavoriteNumList, err = l.svcCtx.LikeRpc.GetFavoriteCountByAuthorIds(l.ctx, &like.GetFavoriteCountByAuthorIdsReq{AuthorIds: authorIds})
 		return err
 	})
 
@@ -132,7 +134,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	var userFavoriteCountList *like.GetFavoriteCountByUserIdsReply
 	eg.Go(func() error {
 		var err error
-		userFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserIds(context.TODO(), &like.GetFavoriteCountByUserIdsReq{UserIds: authorIds})
+		userFavoriteCountList, err = l.svcCtx.LikeRpc.GetFavoriteCountByUserIds(l.ctx, &like.GetFavoriteCountByUserIdsReq{UserIds: authorIds})
 		return err
 	})
 
@@ -140,14 +142,14 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	var workCount *video.VideoNumReply
 	eg.Go(func() error {
 		var err error
-		workCount, err = l.svcCtx.VideoRpc.GetVideoNumByAuthorId(context.TODO(), &video.AuthorIdReq{AuthorId: authorIds})
+		workCount, err = l.svcCtx.VideoRpc.GetVideoNumByAuthorId(l.ctx, &video.AuthorIdReq{AuthorId: authorIds})
 		return err
 	})
 
 	//错误判断
 	if err := eg.Wait(); err != nil {
 		logx.Errorf("Rpc调用失败%w", err)
-		resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询评论列表失败"}
+		resp = &types.GetCommentListResponse{StatusCode: res.RemoteServiceErrorCode, StatusMsg: "RPC error"}
 		return resp, nil
 	}
 

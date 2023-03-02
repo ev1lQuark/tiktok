@@ -87,7 +87,7 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 		}
 
 		// clear cache first time
-		l.svcCtx.Redis.Del(l.ctx, strconv.FormatInt(videoId, 10)).Result()
+		l.svcCtx.Redis.Del(l.ctx, fmt.Sprintf(pattern.VideoIDToCommentListJSON, videoId)).Result()
 
 		// create data in mysql
 		err = commentQuery.WithContext(l.ctx).Create(comment)
@@ -191,7 +191,7 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 		}
 
 		// clear cache first time
-		l.svcCtx.Redis.Del(l.ctx, strconv.FormatInt(videoId, 10))
+		l.svcCtx.Redis.Del(l.ctx, fmt.Sprintf(pattern.VideoIDToCommentListJSON, videoId))
 
 		// update count
 		_, err = l.svcCtx.Redis.HIncrBy(l.ctx, pattern.VideoIDToCommentCount, strconv.FormatInt(videoId, 10), -1).Result()
