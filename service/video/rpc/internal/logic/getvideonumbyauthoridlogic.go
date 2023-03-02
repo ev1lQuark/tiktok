@@ -38,9 +38,9 @@ func (l *GetVideoNumByAuthorIdLogic) GetVideoNumByAuthorId(in *video.AuthorIdReq
 			logx.Error(msg)
 			return nil, err
 		}
-		countInt64, _ := strconv.ParseInt(count, 10, 64)
+		countInt64, err := strconv.ParseInt(count, 10, 64)
 		if err != nil {
-			msg := fmt.Sprintf("count解析int失败：%v", err)
+			msg := fmt.Sprintf("count解析int失败: %v, error: %v", count, err)
 			logx.Error(msg)
 			return nil, err
 		}

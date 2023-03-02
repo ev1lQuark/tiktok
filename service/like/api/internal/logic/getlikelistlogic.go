@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/types/comment"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/svc"
@@ -104,7 +106,10 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		commentCountReply, err = l.svcCtx.CommentRpc.GetCommentCountByVideoId(l.ctx, &comment.GetComentCountByVideoIdReq{
 			VideoId: videoIds,
 		})
-		return err
+		if err != nil {
+			return fmt.Errorf("CommentRpc.GetCommentCountByVideoId error: %v", err)
+		}
+		return nil
 	})
 
 	// 根据 authorIds 获取 workCount
@@ -112,7 +117,10 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	eg.Go(func() error {
 		var err error
 		workCount, err = l.svcCtx.VideoRpc.GetVideoNumByAuthorId(l.ctx, &video.AuthorIdReq{AuthorId: authorIds})
-		return err
+		if err != nil {
+			return fmt.Errorf("VideoRpc.GetVideoNumByAuthorId error: %v", err)
+		}
+		return nil
 	})
 
 	//根据 authorIds 获取 authorNames
@@ -120,7 +128,10 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	eg.Go(func() error {
 		var err error
 		authorNamesReply, err = l.svcCtx.UserRpc.GetNames(l.ctx, &user.IdListReq{IdList: authorIds})
-		return err
+		if err != nil {
+			return fmt.Errorf("UserRpc.GetNames error: %v", err)
+		}
+		return nil
 	})
 
 	// errgroup 等待所有 rpc 请求完成
@@ -143,13 +154,13 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		authorIsFavoritedCountList = append(authorFavoriteCountList, count)
 	}
 	_, err = pipe.Exec(l.ctx)
-	if err != nil {
-		logx.Errorf("redis error: %w", err)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		logx.Error(err)
 		resp = &types.LikeListResponse{
 			StatusCode: strconv.Itoa(res.InternalServerErrorCode),
-			StatusMsg:  "redis 错误",
+			StatusMsg:  err.Error(),
 		}
-		return resp, err
+		return resp, nil
 	}
 
 	videoList := make([]types.VideoList, 0, len(videoIds))
