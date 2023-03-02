@@ -14,8 +14,8 @@ type Config struct {
 		AccessKey   string
 		SecretKey   string
 	}
-	Redis struct {
-		Addr   string
-		DB     int
+	CustomRedis struct {
+		Addr string
+		DB   int
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/types"
 	"github.com/ev1lQuark/tiktok/service/comment/model"
+	"github.com/ev1lQuark/tiktok/service/comment/pattern"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
@@ -97,7 +98,7 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 		}
 
 		// update count
-		_, err = l.svcCtx.Redis.HIncrBy(l.ctx, VideoIDToCommentCount, strconv.FormatInt(videoId, 10), 1).Result()
+		_, err = l.svcCtx.Redis.HIncrBy(l.ctx, pattern.VideoIDToCommentCount, strconv.FormatInt(videoId, 10), 1).Result()
 		if err != nil {
 			logx.Error(err)
 			resp = &types.CommentResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: err.Error()}
@@ -193,7 +194,7 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 		l.svcCtx.Redis.Del(l.ctx, strconv.FormatInt(videoId, 10))
 
 		// update count
-		_, err = l.svcCtx.Redis.HIncrBy(l.ctx, VideoIDToCommentCount, strconv.FormatInt(videoId, 10), -1).Result()
+		_, err = l.svcCtx.Redis.HIncrBy(l.ctx, pattern.VideoIDToCommentCount, strconv.FormatInt(videoId, 10), -1).Result()
 		if err != nil {
 			logx.Error(err)
 			resp = &types.CommentResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: err.Error()}

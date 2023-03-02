@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ev1lQuark/tiktok/service/comment/model"
-	"github.com/redis/go-redis/v9"
 	"time"
+
+	"github.com/ev1lQuark/tiktok/service/comment/model"
+	"github.com/ev1lQuark/tiktok/service/comment/pattern"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
@@ -27,10 +29,6 @@ type GetCommentListLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
-
-var VideoIDToCommentListJSON = "COMMENT::VIDEOID:%d:COMMENTLIST_JSON"
-var VideoIDToCommentCount = "COMMENT::VIDEOID::COMMENT_COUNT"
-
 
 func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCommentListLogic {
 	return &GetCommentListLogic{
@@ -61,9 +59,8 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		return resp, nil
 	}
 
-
 	var tableComments []*model.Comment
-	videoIDToCommentListJSON := fmt.Sprintf(VideoIDToCommentListJSON, videoId)
+	videoIDToCommentListJSON := fmt.Sprintf(pattern.VideoIDToCommentListJSON, videoId)
 	tableCommentJson, err := l.svcCtx.Redis.Get(context.TODO(), videoIDToCommentListJSON).Result()
 	// 命中缓存
 	if err != nil && err != redis.Nil {
@@ -72,7 +69,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 		return resp, nil
 	}
 	if err != redis.Nil {
-		_, err = l.svcCtx.Redis.Expire(context.TODO(), videoIDToCommentListJSON,time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
+		_, err = l.svcCtx.Redis.Expire(context.TODO(), videoIDToCommentListJSON, time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
 		if err != nil {
 			logx.Errorf("Redis重置时间错误:%w", err)
 			resp = &types.GetCommentListResponse{StatusCode: res.BadRequestCode, StatusMsg: "查询错误"}
@@ -99,7 +96,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 			return resp, nil
 		}
 
-		_, err = l.svcCtx.Redis.Set(context.TODO(), videoIDToCommentListJSON, string(tableCommentJson), time.Duration(l.svcCtx.Config.Redis.ExpireTime) * time.Second).Result()
+		_, err = l.svcCtx.Redis.Set(context.TODO(), videoIDToCommentListJSON, string(tableCommentJson), time.Duration(l.svcCtx.Config.Redis.ExpireTime)*time.Second).Result()
 
 		if err != nil {
 			logx.Errorf("Redis写入错误:%w", err)
@@ -180,4 +177,3 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListRequest) (
 	resp = &types.GetCommentListResponse{StatusCode: res.SuccessCode, StatusMsg: "获取评论列表成功", CommentList: commentList}
 	return resp, nil
 }
-

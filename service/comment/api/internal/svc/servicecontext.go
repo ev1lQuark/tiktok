@@ -11,6 +11,7 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/producer"
 	"github.com/ev1lQuark/tiktok/common/db"
 	"github.com/ev1lQuark/tiktok/service/comment/api/internal/config"
+	"github.com/ev1lQuark/tiktok/service/comment/pattern"
 	"github.com/ev1lQuark/tiktok/service/comment/query"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/likeclient"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/userclient"
@@ -20,9 +21,6 @@ import (
 	"github.com/zeromicro/go-zero/zrpc"
 	"gorm.io/gorm"
 )
-
-var VideoIDToCommentListJSON = "COMMENT::VIDEOID:%d:COMMENTLIST_JSON"
-var VideoIDToCommentCount = "COMMENT::VIDEOID::COMMENT_COUNT"
 
 type ServiceContext struct {
 	Config     config.Config
@@ -151,7 +149,7 @@ func readAllCommentCountByVideoId(svcCtx *ServiceContext) error {
 	}
 
 	for key, value := range commentCount {
-		_, err := svcCtx.Redis.HSet(context.TODO(), VideoIDToCommentCount, strconv.FormatInt(key, 10), strconv.FormatInt(value, 10)).Result()
+		_, err := svcCtx.Redis.HSet(context.TODO(), pattern.VideoIDToCommentCount, strconv.FormatInt(key, 10), strconv.FormatInt(value, 10)).Result()
 		if err != nil {
 			return err
 		}

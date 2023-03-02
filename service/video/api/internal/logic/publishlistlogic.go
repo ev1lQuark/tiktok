@@ -3,10 +3,11 @@ package logic
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"path"
 	"strconv"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
@@ -15,6 +16,7 @@ import (
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/types"
+	"github.com/ev1lQuark/tiktok/service/video/pattern"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -134,8 +136,7 @@ func (l *PublishListLogic) PublishList(req *types.PublishListReq) (resp *types.P
 
 	// 获取workCount
 
-
-	count, err := l.svcCtx.Redis.HGet(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(userId, 10)).Result()
+	count, err := l.svcCtx.Redis.HGet(context.TODO(), pattern.AuthorIdToWorkCount, strconv.FormatInt(userId, 10)).Result()
 
 	if err == redis.Nil {
 		count = "0"

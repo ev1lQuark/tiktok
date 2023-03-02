@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -10,11 +11,12 @@ import (
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/types/comment"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/types/user"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/types"
-	"github.com/ev1lQuark/tiktok/service/like/setting"
+	"github.com/ev1lQuark/tiktok/service/like/pattern"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -55,7 +57,7 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	}
 
 	// 获取 userId 喜欢视频的 videoIds
-	likeVideoIds, err := l.svcCtx.Redis.SMembers(l.ctx, setting.GetLikeSetUserIdKey(userId)).Result()
+	likeVideoIds, err := l.svcCtx.Redis.SMembers(l.ctx, pattern.GetLikeSetUserIdKey(userId)).Result()
 	if err != nil {
 		logx.Errorf("redis error: %w", err)
 		resp = &types.LikeListResponse{
@@ -104,7 +106,10 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 		commentCountReply, err = l.svcCtx.CommentRpc.GetCommentCountByVideoId(l.ctx, &comment.GetComentCountByVideoIdReq{
 			VideoId: videoIds,
 		})
-		return err
+		if err != nil {
+			return fmt.Errorf("CommentRpc.GetCommentCountByVideoId error: %v", err)
+		}
+		return nil
 	})
 
 	// 根据 authorIds 获取 workCount
@@ -112,7 +117,10 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	eg.Go(func() error {
 		var err error
 		workCount, err = l.svcCtx.VideoRpc.GetVideoNumByAuthorId(l.ctx, &video.AuthorIdReq{AuthorId: authorIds})
-		return err
+		if err != nil {
+			return fmt.Errorf("VideoRpc.GetVideoNumByAuthorId error: %v", err)
+		}
+		return nil
 	})
 
 	//根据 authorIds 获取 authorNames
@@ -120,7 +128,10 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	eg.Go(func() error {
 		var err error
 		authorNamesReply, err = l.svcCtx.UserRpc.GetNames(l.ctx, &user.IdListReq{IdList: authorIds})
-		return err
+		if err != nil {
+			return fmt.Errorf("UserRpc.GetNames error: %v", err)
+		}
+		return nil
 	})
 
 	// errgroup 等待所有 rpc 请求完成
@@ -135,31 +146,31 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	authorIsFavoritedCountList := make([]int64, 0)
 	pipe := l.svcCtx.Redis.Pipeline()
 	for _, authorId := range authorIds {
-		res, _ := pipe.HGet(l.ctx, setting.LikeMapUserIdCountKey, strconv.FormatInt(authorId, 10)).Result()
+		res, _ := pipe.HGet(l.ctx, pattern.LikeMapUserIdCountKey, strconv.FormatInt(authorId, 10)).Result()
 		count, _ := strconv.ParseInt(res, 10, 64)
 		authorFavoriteCountList = append(authorFavoriteCountList, count)
-		res, _ = pipe.HGet(l.ctx, setting.LikeMapAuthorIdCountKey, strconv.FormatInt(authorId, 10)).Result()
+		res, _ = pipe.HGet(l.ctx, pattern.LikeMapAuthorIdCountKey, strconv.FormatInt(authorId, 10)).Result()
 		count, _ = strconv.ParseInt(res, 10, 64)
 		authorIsFavoritedCountList = append(authorFavoriteCountList, count)
 	}
 	_, err = pipe.Exec(l.ctx)
-	if err != nil {
-		logx.Errorf("redis error: %w", err)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		logx.Error(err)
 		resp = &types.LikeListResponse{
 			StatusCode: strconv.Itoa(res.InternalServerErrorCode),
-			StatusMsg:  "redis 错误",
+			StatusMsg:  err.Error(),
 		}
-		return resp, err
+		return resp, nil
 	}
 
 	videoList := make([]types.VideoList, 0, len(videoIds))
 	pipe = l.svcCtx.Redis.Pipeline()
 	for i, videoId := range videoIds {
 		//通过videoId获取当前视频受喜欢次数
-		res, _ := pipe.HGet(l.ctx, setting.LikeMapVideoIdCountKey, strconv.FormatInt(videoId, 10)).Result()
+		res, _ := pipe.HGet(l.ctx, pattern.LikeMapVideoIdCountKey, strconv.FormatInt(videoId, 10)).Result()
 		videoFavoriteCount, _ := strconv.ParseInt(res, 10, 64)
 		//通过videoId判断用户是否对其点赞
-		isF, _ := pipe.SIsMember(l.ctx, setting.GetLikeSetUserIdKey(userId), strconv.FormatInt(videoId, 10)).Result()
+		isF, _ := pipe.SIsMember(l.ctx, pattern.GetLikeSetUserIdKey(userId), strconv.FormatInt(videoId, 10)).Result()
 		//对每个video进行整理,
 		videoSingle := types.VideoList{
 			ID: videoId,

@@ -3,10 +3,12 @@ package logic
 import (
 	"context"
 	"fmt"
+	"strconv"
+
+	"github.com/ev1lQuark/tiktok/service/video/pattern"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/types/video"
 	"github.com/redis/go-redis/v9"
-	"strconv"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -16,7 +18,7 @@ type GetVideoNumByAuthorIdLogic struct {
 	svcCtx *svc.ServiceContext
 	logx.Logger
 }
-var AuthorIdToWorkCount = "VIDEO::AUTHORID::VIDEO_COUNT"
+
 func NewGetVideoNumByAuthorIdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetVideoNumByAuthorIdLogic {
 	return &GetVideoNumByAuthorIdLogic{
 		ctx:    ctx,
@@ -28,7 +30,7 @@ func NewGetVideoNumByAuthorIdLogic(ctx context.Context, svcCtx *svc.ServiceConte
 func (l *GetVideoNumByAuthorIdLogic) GetVideoNumByAuthorId(in *video.AuthorIdReq) (*video.VideoNumReply, error) {
 	videoNumList := make([]int64, 0, len(in.AuthorId))
 	for _, authorId := range in.AuthorId {
-		count, err := l.svcCtx.Redis.HGet(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(authorId, 10)).Result()
+		count, err := l.svcCtx.Redis.HGet(context.TODO(), pattern.AuthorIdToWorkCount, strconv.FormatInt(authorId, 10)).Result()
 		if err == redis.Nil {
 			count = "0"
 		} else if err != nil {
@@ -36,9 +38,9 @@ func (l *GetVideoNumByAuthorIdLogic) GetVideoNumByAuthorId(in *video.AuthorIdReq
 			logx.Error(msg)
 			return nil, err
 		}
-		countInt64, _ := strconv.ParseInt(count, 10, 64)
+		countInt64, err := strconv.ParseInt(count, 10, 64)
 		if err != nil {
-			msg := fmt.Sprintf("count解析int失败：%v", err)
+			msg := fmt.Sprintf("count解析int失败: %v, error: %v", count, err)
 			logx.Error(msg)
 			return nil, err
 		}

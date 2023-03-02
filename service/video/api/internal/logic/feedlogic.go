@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ev1lQuark/tiktok/service/video/model"
-	"github.com/redis/go-redis/v9"
 	"path"
 	"strconv"
 	"time"
+
+	"github.com/ev1lQuark/tiktok/service/video/model"
+	"github.com/ev1lQuark/tiktok/service/video/pattern"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/types/comment"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
@@ -36,9 +38,6 @@ func NewFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FeedLogic {
 	}
 }
 
-var VideoDataListJSON = "VIDEO::ZSET::VIDEO_DATA_JSON"
-var AuthorIdToWorkCount = "VIDEO::AUTHORID::VIDEO_COUNT"
-
 func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) {
 	// 参数校验
 	var lastTime time.Time
@@ -56,7 +55,6 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 		lastTime = time.Unix(t, 0)
 	}
 
-
 	var userId int64
 	if req.Token != "" {
 		userId, err = jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
@@ -72,9 +70,9 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	var tableVideos []*model.Video
 
 	// 多设置2小时防止边界问题
-	if time.Now().Sub(lastTime).Hours() > float64(l.svcCtx.Config.ContinuedTime + 2) {
+	if time.Now().Sub(lastTime).Hours() > float64(l.svcCtx.Config.ContinuedTime+2) {
 		videoQuery := l.svcCtx.Query.Video
-		tableVideos, err = videoQuery.WithContext(context.TODO()).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
+		tableVideos, err = videoQuery.WithContext(l.ctx).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
 		if err != nil {
 			msg := fmt.Sprintf("查询视频失败：%v", err)
 			logx.Error(msg)
@@ -86,9 +84,9 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 			Min:    "0",                                      //最小分数
 			Max:    strconv.FormatInt(lastTime.Unix(), 10),   //最大分数
 			Offset: 0,                                        //在满足条件的范围，从offset下标处开始取值
-			Count: int64(l.svcCtx.Config.Video.NumberLimit), //查询结果集个数
+			Count:  int64(l.svcCtx.Config.Video.NumberLimit), //查询结果集个数
 		}
-		tableVideoListJSON := l.svcCtx.Redis.ZRevRangeByScore(context.TODO(), VideoDataListJSON, opt).Val()
+		tableVideoListJSON := l.svcCtx.Redis.ZRevRangeByScore(l.ctx, pattern.VideoDataListJSON, opt).Val()
 		for _, videoJSON := range tableVideoListJSON {
 			var video model.Video
 			err := json.Unmarshal([]byte(videoJSON), &video)
@@ -102,7 +100,7 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 		}
 		if len(tableVideos) < l.svcCtx.Config.Video.NumberLimit {
 			videoQuery := l.svcCtx.Query.Video
-			tableVideos, err = videoQuery.WithContext(context.TODO()).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
+			tableVideos, err = videoQuery.WithContext(l.ctx).Where(videoQuery.PublishTime.Lt(lastTime)).Order(videoQuery.PublishTime.Desc()).Limit(l.svcCtx.Config.Video.NumberLimit).Find()
 			if err != nil {
 				msg := fmt.Sprintf("查询视频失败：%v", err)
 				logx.Error(msg)
@@ -116,7 +114,6 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	videoIds := make([]int64, 0, len(tableVideos))
 
 	userIds := make([]int64, len(tableVideos))
-
 
 	for _, value := range tableVideos {
 		authorIds = append(authorIds, value.AuthorID)
@@ -205,21 +202,21 @@ func (l *FeedLogic) Feed(req *types.FeedReq) (resp *types.FeedReply, err error) 
 	// 获取authorWorkCountList
 	authorWorkCountList := make([]int, 0, len(tableVideos))
 	for index := 0; index < len(tableVideos); index++ {
-		count, err := l.svcCtx.Redis.HGet(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(authorIds[index], 10)).Result()
+		count, err := l.svcCtx.Redis.HGet(l.ctx, pattern.AuthorIdToWorkCount, strconv.FormatInt(authorIds[index], 10)).Result()
 
 		if err == redis.Nil {
 			count = "0"
 		} else if err != nil {
 			msg := fmt.Sprintf("Redis查询失败：%v", err)
 			logx.Error(msg)
-			resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
+			resp = &types.FeedReply{StatusCode: res.InternalServerErrorCode, StatusMsg: msg}
 			return resp, nil
 		}
-		countInt64, _ := strconv.ParseInt(count, 10, 64)
+		countInt64, err := strconv.ParseInt(count, 10, 64)
 		if err != nil {
 			msg := fmt.Sprintf("count解析int失败：%v", err)
 			logx.Error(msg)
-			resp = &types.FeedReply{StatusCode: res.BadRequestCode, StatusMsg: msg}
+			resp = &types.FeedReply{StatusCode: res.InternalServerErrorCode, StatusMsg: msg}
 			return resp, nil
 		}
 		authorWorkCountList = append(authorWorkCountList, int(countInt64))

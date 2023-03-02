@@ -18,6 +18,7 @@ import (
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/video/api/internal/types"
 	"github.com/ev1lQuark/tiktok/service/video/model"
+	"github.com/ev1lQuark/tiktok/service/video/pattern"
 
 	"time"
 
@@ -101,7 +102,6 @@ func (l *PublishActionLogic) PublishAction(req *types.PublishActionReq, file *mu
 		return resp, nil
 	}
 
-
 	videoJSON, err := json.Marshal(video)
 	if err != nil {
 		logx.Error("JSON序列化出错:%w " + err.Error())
@@ -117,23 +117,20 @@ func (l *PublishActionLogic) PublishAction(req *types.PublishActionReq, file *mu
 		string(videoJSON),
 	}
 
-	_, err = l.svcCtx.Redis.ZAdd(context.TODO(), VideoDataListJSON, l1).Result()
+	_, err = l.svcCtx.Redis.ZAdd(context.TODO(), pattern.VideoDataListJSON, l1).Result()
 	if err != nil {
 		logx.Error("Redis插入新视频出错%w", err)
 		resp = &types.PublishActionReply{StatusCode: res.InternalServerErrorCode, StatusMsg: "失败"}
 		return resp, nil
 	}
 
-
 	// Redis的map进行increase若不存在key，默认为0
-	_, err = l.svcCtx.Redis.HIncrBy(context.TODO(), AuthorIdToWorkCount, strconv.FormatInt(userId, 10), 1).Result()
+	_, err = l.svcCtx.Redis.HIncrBy(context.TODO(), pattern.AuthorIdToWorkCount, strconv.FormatInt(userId, 10), 1).Result()
 	if err != nil {
 		logx.Error("Redis增加对应workCount失败%w", err)
 		resp = &types.PublishActionReply{StatusCode: res.InternalServerErrorCode, StatusMsg: "失败"}
 		return resp, nil
 	}
-
-
 
 	resp = &types.PublishActionReply{StatusCode: res.SuccessCode, StatusMsg: "发布成功"}
 	return resp, nil

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -9,9 +10,10 @@ type Config struct {
 	Mysql struct {
 		DataSource string
 	}
-	Redis struct {
-		Addr   string
-		DB     int
+	CacheRedis  cache.CacheConf
+	CustomRedis struct {
+		Addr       string
+		DB         int
 		ExpireTime int
 	}
 }
