@@ -3,9 +3,10 @@ package logic
 import (
 	"context"
 	"fmt"
-	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"strconv"
 	"time"
+
+	"github.com/apache/rocketmq-client-go/v2/primitive"
 
 	"github.com/ev1lQuark/tiktok/common/jwt"
 	"github.com/ev1lQuark/tiktok/common/res"
@@ -18,7 +19,6 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/sync/errgroup"
 )
-
 
 type CommentLogic struct {
 	logx.Logger
@@ -38,10 +38,10 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 	// Parse jwt token
 	userId, err := jwt.GetUserId(l.svcCtx.Config.Auth.AccessSecret, req.Token)
 	if err != nil {
-		logx.Errorf("jwt 认证失败%w", err)
+		logx.Error(err)
 		resp = &types.CommentResponse{
 			StatusCode: res.AuthFailedCode,
-			StatusMsg:  "jwt 认证失败",
+			StatusMsg:  err.Error(),
 		}
 		return resp, nil
 	}
@@ -49,13 +49,13 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 	// 参数校验
 	videoId, err := strconv.ParseInt(req.VideoId, 10, 64)
 	if err != nil {
-		logx.Errorf("参数错误%w", err)
+		logx.Errorf("参数错误: %w", err)
 		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
 	actionType, err := strconv.ParseInt(req.ActionType, 10, 64)
 	if err != nil || (actionType != int64(1) && actionType != int64(2)) {
-		logx.Errorf("参数错误%w", err)
+		logx.Errorf("参数错误: %w", err)
 		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "参数错误"}
 		return resp, nil
 	}
@@ -64,13 +64,13 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 	videoInfo, err := l.svcCtx.VideoRpc.GetVideoByVideoId(l.ctx, &video.VideoIdReq{VideoId: []int64{videoId}})
 
 	if err != nil {
-		logx.Errorf("Rpc调用失败%w", err)
-		resp = &types.CommentResponse{StatusCode: res.RemoteServiceErrorCode, StatusMsg: "参数错误"}
+		logx.Errorf("RPC调用失败: %w", err)
+		resp = &types.CommentResponse{StatusCode: res.RemoteServiceErrorCode, StatusMsg: err.Error()}
 		return resp, nil
 	}
 	if videoInfo.AuthorId[0] == 0 {
-		logx.Errorf("视频不存在")
-		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "视频不存在"}
+		logx.Errorf("invalid videoId: %d", videoId)
+		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "invalid videoId"}
 		return resp, nil
 	}
 
@@ -85,34 +85,43 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 			Cancel:      0,
 		}
 
+		// clear cache first time
+		l.svcCtx.Redis.Del(l.ctx, strconv.FormatInt(videoId, 10)).Result()
 
-		err = commentQuery.WithContext(context.TODO()).Create(comment)
+		// create data in mysql
+		err = commentQuery.WithContext(l.ctx).Create(comment)
 		if err != nil {
-			logx.Errorf("缓存失效失败%w", err)
-			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
+			logx.Error(err)
+			resp = &types.CommentResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: err.Error()}
 			return resp, nil
 		}
 
-		// 缓存策略
-		// 直接缓存失效
-		_, err = l.svcCtx.Redis.Del(context.TODO(),strconv.FormatInt(videoId, 10)).Result()
-
+		// update count
+		_, err = l.svcCtx.Redis.HIncrBy(l.ctx, VideoIDToCommentCount, strconv.FormatInt(videoId, 10), 1).Result()
 		if err != nil {
-			logx.Errorf("缓存失效失败%w", err)
-			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
+			logx.Error(err)
+			resp = &types.CommentResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: err.Error()}
 			return resp, nil
 		}
 
-		_, err = l.svcCtx.Redis.HIncrBy(context.TODO(), VideoIDToCommentCount, strconv.FormatInt(videoId, 10), 1).Result()
-		if err != nil {
-			logx.Errorf("videoCommentCountRedis增加失败:%w", err)
-			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
-			return resp, nil
+		// clear cache second time
+		msg := primitive.NewMessage(l.svcCtx.Config.RocketMQ.ClearCacheTopic, []byte(strconv.FormatInt(videoId, 10)))
+		for i := 0; i < 10; i++ { // 确保发送成功
+			if err := l.svcCtx.MqProducer.SendAsync(context.Background(), func(ctx context.Context, result *primitive.SendResult, err error) {
+				if err != nil {
+					logx.Error(err)
+				}
+			}, msg); err != nil {
+				logx.Error(err)
+			} else {
+				break
+			}
 		}
 
+		// RPC invoking
 		var eg errgroup.Group
 
-		//根据userId获取userName
+		// 根据userId获取userName
 		var userNameList *user.NameListReply
 		eg.Go(func() error {
 			var err error
@@ -144,13 +153,14 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 			return err
 		})
 
-		//错误判断
+		// 错误判断
 		if err := eg.Wait(); err != nil {
-			logx.Errorf("Rpc调用失败%w", err)
-			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "获取评论详细信息失败"}
+			logx.Error(err)
+			resp = &types.CommentResponse{StatusCode: res.RemoteServiceErrorCode, StatusMsg: err.Error()}
 			return resp, nil
 		}
 
+		// build response
 		commentInfo := types.Comment{
 			ID: comment.ID,
 			User: types.User{
@@ -169,46 +179,41 @@ func (l *CommentLogic) Comment(req *types.CommentRequest) (resp *types.CommentRe
 			Content:    comment.CommentText,
 			CreateDate: comment.CreatDate.String(),
 		}
-		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论成功", Comment: commentInfo}
+
+		resp = &types.CommentResponse{StatusCode: res.SuccessCode, StatusMsg: "ok", Comment: commentInfo}
 	} else if actionType == 2 {
 		// 参数校验
 		commentId, err := strconv.ParseInt(req.CommentId, 10, 64)
 		if err != nil {
-			msg := fmt.Sprintf("参数错误：%s", err.Error())
-			logx.Errorf(msg)
-			return &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: msg}, nil
+			logx.Error(err)
+			return &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: err.Error()}, nil
 		}
-		// 缓存策略直接失效
 
-		_, err = l.svcCtx.Redis.Del(context.TODO(),strconv.FormatInt(videoId, 10)).Result()
+		// clear cache first time
+		l.svcCtx.Redis.Del(l.ctx, strconv.FormatInt(videoId, 10))
+
+		// update count
+		_, err = l.svcCtx.Redis.HIncrBy(l.ctx, VideoIDToCommentCount, strconv.FormatInt(videoId, 10), -1).Result()
 		if err != nil {
-			logx.Errorf("缓存失效失败%w", err)
-			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论失败"}
+			logx.Error(err)
+			resp = &types.CommentResponse{StatusCode: res.InternalServerErrorCode, StatusMsg: err.Error()}
 			return resp, nil
 		}
 
-		_, err = l.svcCtx.Redis.HIncrBy(context.TODO(), VideoIDToCommentCount, strconv.FormatInt(videoId, 10), -1).Result()
-		if err != nil {
-			logx.Errorf("videoCommentCountRedis减少失败:%w", err)
-			resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "发布评论失败"}
-			return resp, nil
-		}
-
+		// async delete & clear cache second time
 		body := fmt.Sprintf("%d-%d", commentId, videoId)
 		msg := &primitive.Message{
-			Topic: l.svcCtx.Config.RocketMQ.Topic,
+			Topic: l.svcCtx.Config.RocketMQ.AsyncDeleteTopic,
 			Body:  []byte(body),
 		}
-
-		// 发送消息到 MQ
-		l.svcCtx.MqProducer.SendAsync(context.TODO(), func(ctx context.Context, result *primitive.SendResult, err error) {
+		l.svcCtx.MqProducer.SendAsync(l.ctx, func(ctx context.Context, result *primitive.SendResult, err error) {
 			if err != nil {
 				logx.Error(err)
 				return
 			}
 		}, msg)
 		logx.Info("send to MQ")
-		resp = &types.CommentResponse{StatusCode: res.BadRequestCode, StatusMsg: "删除评论成功"}
+		resp = &types.CommentResponse{StatusCode: res.SuccessCode, StatusMsg: "ok"}
 	}
 	return resp, nil
 }
