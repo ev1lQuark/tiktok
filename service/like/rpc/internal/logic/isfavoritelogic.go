@@ -2,11 +2,12 @@ package logic
 
 import (
 	"context"
-	"strconv"
+	"errors"
 
 	"github.com/ev1lQuark/tiktok/service/like/pattern"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -27,38 +28,24 @@ func NewIsFavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *IsFavo
 
 // 根据userId和videoId判断是否点赞
 func (l *IsFavoriteLogic) IsFavorite(in *like.IsFavoriteReq) (*like.IsFavoriteReply, error) {
-	videoIds := make([]string, 0, len(in.VideoIds))
-	for _, videoId := range in.VideoIds {
-		videoIds = append(videoIds, strconv.FormatInt(videoId, 10))
-	}
-
-	userIds := make([]string, 0, len(in.UserIds))
-	for _, userId := range in.UserIds {
-		userIds = append(userIds, strconv.FormatInt(userId, 10))
-	}
-
-	keys := make([]string, 0, len(videoIds))
-	for i := range videoIds {
-		uid, _ := strconv.ParseInt(userIds[i], 10, 64)
-		vid, _ := strconv.ParseInt(videoIds[i], 10, 64)
-		keys = append(keys, pattern.GetLikeMapDataKey(uid, vid))
-	}
-
-	res, err := l.svcCtx.Redis.HMGet(l.ctx, pattern.LikeMapDataKey, keys...).Result()
-	if err != nil {
-		return nil, err
-	}
-	if len(res) == 0 {
-		return &like.IsFavoriteReply{}, nil
-	}
-
-	isFavoriteSlice := make([]bool, 0, len(res))
-	for _, item := range res {
-		if item == 1 {
-			isFavoriteSlice = append(isFavoriteSlice, false)
+	isFavoriteSlice := make([]bool, 0, len(in.VideoIds))
+	for i := range in.VideoIds {
+		key := pattern.GetLikeMapDataKey(in.UserIds[i], in.VideoIds[i])
+		res, err := l.svcCtx.Redis.HGet(l.ctx, pattern.LikeMapDataKey, key).Result()
+		if err != nil {
+			if errors.Is(err, redis.Nil) {
+				isFavoriteSlice = append(isFavoriteSlice, false)
+			} else {
+				return nil, err
+			}
 		} else {
-			isFavoriteSlice = append(isFavoriteSlice, true)
+			if res == "0" {
+				isFavoriteSlice = append(isFavoriteSlice, true)
+			} else {
+				isFavoriteSlice = append(isFavoriteSlice, false)
+			}
 		}
 	}
+
 	return &like.IsFavoriteReply{IsFavoriteSlice: isFavoriteSlice}, nil
 }
