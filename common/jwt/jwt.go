@@ -55,7 +55,7 @@ func Verify(secretKey string, tokenString string) bool {
 	return claims.VerifyExpiresAt(time.Now().Unix(), true)
 }
 
-// 检查jwt合法性并返回userId
+// 检查 jwt 合法性并返回 userId
 func GetUserId(secretKey string, tokenString string) (int64, error) {
 	if disable, ok := os.LookupEnv("JWT_DISABLE"); ok && disable == "true" {
 		logx.Info("jwt disabled")

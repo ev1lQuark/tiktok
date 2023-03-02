@@ -3,6 +3,8 @@ package svc
 import (
 	"context"
 	"fmt"
+	"strconv"
+
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -17,8 +19,6 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 	"gorm.io/gorm"
-	"strconv"
-	"time"
 )
 
 var VideoIDToCommentListJSON = "COMMENT::VIDEOID:%d:COMMENTLIST_JSON"
@@ -70,29 +70,17 @@ func NewServiceContext(c config.Config) *ServiceContext {
 }
 
 func startMQConsumer(svcCtx *ServiceContext) {
-	logx.Info("启动消息Consumer")
-	// 从MQ中读取数据
-	c, err := rocketmq.NewPushConsumer(
-		consumer.WithNameServer([]string{svcCtx.Config.RocketMQ.NameServer}),
-		consumer.WithConsumerModel(consumer.Clustering),
-		consumer.WithGroupName(svcCtx.Config.RocketMQ.Group),
-	)
-	if err != nil {
-		logx.Error(err)
-		return
-	}
-	c.Subscribe(svcCtx.Config.RocketMQ.Topic, consumer.MessageSelector{},
+	svcCtx.MqConsumer.Subscribe(svcCtx.Config.RocketMQ.AsyncDeleteTopic, consumer.MessageSelector{},
 		func(ctx context.Context,
 			msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
 			for _, msg := range msgs {
 				// 处理消息
-				logx.Info("receive from MQ")
 				var commentId, videoId int64
 				_, err := fmt.Sscanf(string(msg.Body), "%d-%d", &commentId, videoId)
 				if err != nil {
 					msg := fmt.Sprintf("删除评论失败：%s", err.Error())
 					logx.Error(msg)
-					return consumer.ConsumeRetryLater, err
+					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
 
 				// 修改数据库
@@ -101,24 +89,53 @@ func startMQConsumer(svcCtx *ServiceContext) {
 				if err != nil {
 					msg := fmt.Sprintf("删除评论失败：%s", err.Error())
 					logx.Error(msg)
-					return consumer.ConsumeRetryLater, err
+					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
 				if info.RowsAffected != 1 {
 					msg := fmt.Sprintf("删除评论失败：%s", "评论不存在")
 					logx.Error(msg)
-					return consumer.ConsumeRetryLater, err
+					return consumer.ConsumeResult(consumer.FailedReturn), err
 				}
 
 				// 延时双删
-				go func(svcCtx *ServiceContext, videoId int64) {
-					time.Sleep(time.Duration(svcCtx.Delaytime) * time.Second)
-					// 直接缓存失效
-					svcCtx.Redis.Del(context.TODO(), strconv.FormatInt(videoId, 10))
-				}(svcCtx, videoId)
+				msg := primitive.NewMessage(svcCtx.Config.RocketMQ.ClearCacheTopic, []byte(fmt.Sprintf("%d", videoId)))
+				for i := 0; i < 10; i++ { // 确保发送成功
+					if err := svcCtx.MqProducer.SendAsync(context.Background(), func(ctx context.Context, result *primitive.SendResult, err error) {
+						if err != nil {
+							logx.Error(err)
+						}
+					}, msg); err != nil {
+						logx.Error(err)
+					} else {
+						break
+					}
+				}
+
 			}
 			return consumer.ConsumeSuccess, nil
 		})
-	c.Start()
+
+	svcCtx.MqConsumer.Subscribe(svcCtx.Config.RocketMQ.ClearCacheTopic, consumer.MessageSelector{},
+		func(ctx context.Context,
+			msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
+			for _, msg := range msgs {
+				// 处理消息
+				var videoId int64
+				_, err := fmt.Sscanf(string(msg.Body), "%d", &videoId)
+				if err != nil {
+					logx.Error(err)
+					return consumer.ConsumeResult(consumer.FailedReturn), err
+				}
+				if err := svcCtx.Redis.Del(context.Background(), strconv.FormatInt(videoId, 10)).Err(); err != nil {
+					logx.Error(err)
+					return consumer.ConsumeRetryLater, err
+				}
+			}
+			return consumer.ConsumeSuccess, nil
+		})
+
+	svcCtx.MqConsumer.Start()
+	logx.Info("RocketMQ Consumer Started")
 }
 
 func readAllCommentCountByVideoId(svcCtx *ServiceContext) error {
