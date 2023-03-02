@@ -14,7 +14,7 @@ import (
 
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/types"
-	"github.com/ev1lQuark/tiktok/service/like/setting"
+	"github.com/ev1lQuark/tiktok/service/like/pattern"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -55,7 +55,7 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	}
 
 	// 获取 userId 喜欢视频的 videoIds
-	likeVideoIds, err := l.svcCtx.Redis.SMembers(l.ctx, setting.GetLikeSetUserIdKey(userId)).Result()
+	likeVideoIds, err := l.svcCtx.Redis.SMembers(l.ctx, pattern.GetLikeSetUserIdKey(userId)).Result()
 	if err != nil {
 		logx.Errorf("redis error: %w", err)
 		resp = &types.LikeListResponse{
@@ -135,10 +135,10 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	authorIsFavoritedCountList := make([]int64, 0)
 	pipe := l.svcCtx.Redis.Pipeline()
 	for _, authorId := range authorIds {
-		res, _ := pipe.HGet(l.ctx, setting.LikeMapUserIdCountKey, strconv.FormatInt(authorId, 10)).Result()
+		res, _ := pipe.HGet(l.ctx, pattern.LikeMapUserIdCountKey, strconv.FormatInt(authorId, 10)).Result()
 		count, _ := strconv.ParseInt(res, 10, 64)
 		authorFavoriteCountList = append(authorFavoriteCountList, count)
-		res, _ = pipe.HGet(l.ctx, setting.LikeMapAuthorIdCountKey, strconv.FormatInt(authorId, 10)).Result()
+		res, _ = pipe.HGet(l.ctx, pattern.LikeMapAuthorIdCountKey, strconv.FormatInt(authorId, 10)).Result()
 		count, _ = strconv.ParseInt(res, 10, 64)
 		authorIsFavoritedCountList = append(authorFavoriteCountList, count)
 	}
@@ -156,10 +156,10 @@ func (l *GetLikeListLogic) GetLikeList(req *types.LikeListRequest) (resp *types.
 	pipe = l.svcCtx.Redis.Pipeline()
 	for i, videoId := range videoIds {
 		//通过videoId获取当前视频受喜欢次数
-		res, _ := pipe.HGet(l.ctx, setting.LikeMapVideoIdCountKey, strconv.FormatInt(videoId, 10)).Result()
+		res, _ := pipe.HGet(l.ctx, pattern.LikeMapVideoIdCountKey, strconv.FormatInt(videoId, 10)).Result()
 		videoFavoriteCount, _ := strconv.ParseInt(res, 10, 64)
 		//通过videoId判断用户是否对其点赞
-		isF, _ := pipe.SIsMember(l.ctx, setting.GetLikeSetUserIdKey(userId), strconv.FormatInt(videoId, 10)).Result()
+		isF, _ := pipe.SIsMember(l.ctx, pattern.GetLikeSetUserIdKey(userId), strconv.FormatInt(videoId, 10)).Result()
 		//对每个video进行整理,
 		videoSingle := types.VideoList{
 			ID: videoId,

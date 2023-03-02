@@ -4,9 +4,9 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/ev1lQuark/tiktok/service/like/pattern"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
-	"github.com/ev1lQuark/tiktok/service/like/setting"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -41,10 +41,10 @@ func (l *IsFavoriteLogic) IsFavorite(in *like.IsFavoriteReq) (*like.IsFavoriteRe
 	for i := range videoIds {
 		uid, _ := strconv.ParseInt(userIds[i], 10, 64)
 		vid, _ := strconv.ParseInt(videoIds[i], 10, 64)
-		keys = append(keys, setting.GetLikeMapDataKey(uid, vid))
+		keys = append(keys, pattern.GetLikeMapDataKey(uid, vid))
 	}
 
-	res, err := l.svcCtx.Redis.HMGet(l.ctx, setting.LikeMapDataKey, keys...).Result()
+	res, err := l.svcCtx.Redis.HMGet(l.ctx, pattern.LikeMapDataKey, keys...).Result()
 	if err != nil {
 		return nil, err
 	}

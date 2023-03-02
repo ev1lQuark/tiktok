@@ -9,7 +9,8 @@ Redis:
   ExpireTime: 7200
 RocketMQ:
   NameServer: 192.168.0.210:9876
-  Topic: TIKTOK_COMMENT
+  AsyncDeleteTopic: TIKTOK_COMMENT_ASYNC_DELETE
+  ClearCacheTopic: TIKTOK_COMMENT_CLEAR_CACHE
   Group: TIKTOK_COMMENT_DEFAULT_GROUP
 Auth:
   AccessSecret: "tiktok89757"

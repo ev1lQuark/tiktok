@@ -4,9 +4,9 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/ev1lQuark/tiktok/service/like/pattern"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
-	"github.com/ev1lQuark/tiktok/service/like/setting"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -31,7 +31,7 @@ func (l *GetFavoriteCountByAuthorIdsLogic) GetFavoriteCountByAuthorIds(in *like.
 	for _, authorId := range in.AuthorIds {
 		authorIds = append(authorIds, strconv.FormatInt(authorId, 10))
 	}
-	res, err := l.svcCtx.Redis.HMGet(l.ctx, setting.LikeMapAuthorIdCountKey, authorIds...).Result()
+	res, err := l.svcCtx.Redis.HMGet(l.ctx, pattern.LikeMapAuthorIdCountKey, authorIds...).Result()
 	if err != nil {
 		return nil, err
 	}

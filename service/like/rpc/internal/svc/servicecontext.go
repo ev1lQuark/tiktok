@@ -24,6 +24,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config: c,
 		Query:  query,
-		Redis:  redis.NewClient(&redis.Options{Addr: c.Redis.Addr, DB: c.Redis.DB}),
+		Redis:  redis.NewClient(&redis.Options{Addr: c.CustomRedis.Addr, DB: c.CustomRedis.DB}),
 	}
 }

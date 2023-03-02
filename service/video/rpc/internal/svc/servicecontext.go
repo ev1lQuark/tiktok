@@ -14,7 +14,7 @@ type ServiceContext struct {
 	Config      config.Config
 	Query       *query.Query
 	MinioClient *minio.Client
-	Redis      *redis.Client
+	Redis       *redis.Client
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -28,6 +28,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config:      c,
 		MinioClient: mc,
 		Query:       query.Use(db.NewMysqlConn(c.Mysql.DataSource, &gorm.Config{})),
-		Redis:      redis.NewClient(&redis.Options{Addr: c.Redis.Addr, DB: c.Redis.DB}),
+		Redis:       redis.NewClient(&redis.Options{Addr: c.CustomRedis.Addr, DB: c.CustomRedis.DB}),
 	}
 }

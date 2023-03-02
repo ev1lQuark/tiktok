@@ -12,6 +12,9 @@ Minio:
   ImageBucket: images
   AccessKey: X5PlA9BhVemu7sok
   SecretKey: eD3a5qXUAIUE5BtSqBkbnJMGSed9Jlhb
-Redis:
+CacheRedis:
+  - Host: 192.168.0.210:6379
+    Type: node
+CustomRedis:
   Addr: 192.168.0.210:6379
   DB: 2

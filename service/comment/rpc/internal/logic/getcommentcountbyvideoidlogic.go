@@ -2,11 +2,14 @@ package logic
 
 import (
 	"context"
+
+	"github.com/ev1lQuark/tiktok/service/comment/pattern"
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/types/comment"
 
-	"github.com/zeromicro/go-zero/core/logx"
 	"strconv"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type GetCommentCountByVideoIdLogic struct {
@@ -23,15 +26,13 @@ func NewGetCommentCountByVideoIdLogic(ctx context.Context, svcCtx *svc.ServiceCo
 	}
 }
 
-var VideoIDToCommentCount = "COMMENT::VIDEOID::COMMENT_COUNT"
-
 // 根据videoId获取视屏评论总数
 func (l *GetCommentCountByVideoIdLogic) GetCommentCountByVideoId(in *comment.GetComentCountByVideoIdReq) (*comment.GetComentCountByVideoIdReply, error) {
 	// todo: add your logic here and delete this line
 
 	numList := make([]int64, 0, len(in.VideoId))
 	for _, videoId := range in.VideoId {
-		num, err := l.svcCtx.Redis.HGet(context.TODO(), VideoIDToCommentCount, strconv.FormatInt(videoId, 10)).Result()
+		num, err := l.svcCtx.Redis.HGet(context.TODO(), pattern.VideoIDToCommentCount, strconv.FormatInt(videoId, 10)).Result()
 		if err != nil {
 			return nil, err
 		}

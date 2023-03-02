@@ -4,9 +4,9 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/ev1lQuark/tiktok/service/like/pattern"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/internal/svc"
 	"github.com/ev1lQuark/tiktok/service/like/rpc/types/like"
-	"github.com/ev1lQuark/tiktok/service/like/setting"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -32,7 +32,7 @@ func (l *GetFavoriteCountByVideoIdsLogic) GetFavoriteCountByVideoIds(in *like.Ge
 		videoIds = append(videoIds, strconv.FormatInt(videoId, 10))
 	}
 
-	res, err := l.svcCtx.Redis.HMGet(l.ctx, setting.LikeMapVideoIdCountKey, videoIds...).Result()
+	res, err := l.svcCtx.Redis.HMGet(l.ctx, pattern.LikeMapVideoIdCountKey, videoIds...).Result()
 	if err != nil {
 		return nil, err
 	}

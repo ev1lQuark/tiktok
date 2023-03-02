@@ -8,8 +8,8 @@ import (
 	"github.com/ev1lQuark/tiktok/common/db"
 	"github.com/ev1lQuark/tiktok/service/comment/rpc/commentclient"
 	"github.com/ev1lQuark/tiktok/service/like/api/internal/config"
+	"github.com/ev1lQuark/tiktok/service/like/pattern"
 	"github.com/ev1lQuark/tiktok/service/like/query"
-	"github.com/ev1lQuark/tiktok/service/like/setting"
 	"github.com/ev1lQuark/tiktok/service/user/rpc/userclient"
 	"github.com/ev1lQuark/tiktok/service/video/rpc/videoclient"
 	"github.com/redis/go-redis/v9"
@@ -51,12 +51,12 @@ func sync2db(svcCtx *ServiceContext) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 	defer cancel()
 	likeQuery := svcCtx.Query.Like
-	m, err := svcCtx.Redis.HGetAll(ctx, setting.LikeMapDataKey).Result()
+	m, err := svcCtx.Redis.HGetAll(ctx, pattern.LikeMapDataKey).Result()
 	if err != nil {
 		logx.Error(err)
 	}
 	for k, v := range m {
-		userId, videoId := setting.ParseLikeMapDataKey(k)
+		userId, videoId := pattern.ParseLikeMapDataKey(k)
 		cancel, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			logx.Error(err)
